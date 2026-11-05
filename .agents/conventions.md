@@ -8,12 +8,10 @@ form. A file that you edit heavily should end up uniform rather than half conver
 ## Declarations
 
 - Declare trait and evaluator constants as `static constexpr` members, not `enum` blocks; `enum` constants are being
-  phased out. Give each the type it is used as: `Flags` is `unsigned int` by convention, predicates are `bool`. In C++14
-  the in-class declaration is not a definition. If code odr-uses such a member of a class template, the member also
-  needs a namespace-scope definition, `template <...> constexpr T Cls<...>::kName;` (`arch/Default/Half.h` has the
-  form). Without it, the code links at -O2 but fails to link at -O0. Binding the member to a `const T&` parameter, such
-  as `numext::mini`'s, odr-uses it, and so does taking its address. Pass a prvalue (`+kName`, `Index(kName)`) or add the
-  definition. The test suite builds optimized, so it will not catch the omission.
+  phased out. Give each the type it is used as: `Flags` is `unsigned int` by convention, predicates are `bool`. A
+  `static constexpr` data member is implicitly `inline` since C++17, so it needs no namespace-scope definition. The
+  definitions the C++14 tree needed (`template <...> constexpr T Cls<...>::kName;`) are redundant; remove one when
+  the code around it changes.
 - Prefer `using` to `typedef`, `nullptr` to `NULL`, `= default` and default member initializers to empty constructor
   bodies that assign each member. The `using` rule applies everywhere, `test/` and `contrib/` included. The sweep that
   converted `Eigen/src` skipped those directories, so most aliases near new code there are still `typedef`. Copying the
@@ -27,7 +25,7 @@ form. A file that you edit heavily should end up uniform rather than half conver
   forms. `internal::is_arithmetic` is not a spelling of `std::is_arithmetic`: it is deliberately specialized for
   packet and Eigen scalar types and differs on `long double` during GPU compilation, so use it only when Eigen's
   extended arithmetic category is specifically intended.
-- Put SFINAE in a defaulted template parameter rather than the return type. When an overload set needs the negative
+- Constrain templates with `requires` clauses and concepts rather than SFINAE. When an overload set needs the negative
   case too, constrain both overloads: an exact-match overload next to an unconstrained one can bind a converted
   temporary and return a dangling reference.
 - An in-class definition is already implicitly `inline`; a bare `inline` there is noise. Use `EIGEN_STRONG_INLINE` or
@@ -40,17 +38,17 @@ form. A file that you edit heavily should end up uniform rather than half conver
   keep it working by forwarding to the replacement, and name the replacement in its Doxygen block.
 - Spell names out (`scratch`, not `scr`) and name traits for the property they assert.
 
-## The C++14 baseline
+## The C++20 baseline
 
-Supported headers compile as C++14, which rules out forms that review suggestions often reach for:
+Supported headers compile as C++20 (`design/decisions.md` [cxx20-baseline]). New code uses the language directly:
 
-- `if constexpr` is C++17: use `EIGEN_IF_CONSTEXPR(...)` wherever the condition is compile-time constant. Under C++14
-  the macro expands to a plain `if`, so the code must still be valid C++14.
-- Designated initializers are C++20: use aggregate assignment with `/*name=*/` comments. When a field is derived from
-  other fields of the same object, compute it from locals first: the braced temporary cannot read fields it is about to
-  set.
-- `std::span`, CTAD, fold expressions, `constinit`, and later library additions are unavailable outside guarded
-  backends with a documented newer requirement (the SYCL configurations force C++17, for example).
+- Write `if constexpr`, not `EIGEN_IF_CONSTEXPR(...)`. The macro stays where it already is.
+- Constrain templates with concepts and `requires` clauses. Name the exact property a fast path needs (`AGENTS.md`
+  rule 6); the standard concepts (`std::regular`, `std::convertible_to`) are fine where they say what is meant.
+- Designated initializers, fold expressions, `consteval`, and structural non-type template parameters are available
+  everywhere.
+- The baseline is C++20 exactly. A C++23 feature is available only behind a backend's preprocessor guard with a
+  documented requirement.
 
 ## Hot paths
 

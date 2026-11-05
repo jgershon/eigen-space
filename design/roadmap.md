@@ -4,20 +4,6 @@ The work in order, written for contributors; what the fork does and why is in
 [decisions.md](decisions.md). Kept as EmrysFilter's roadmap: only work not done, a step ends with
 "Done when", step numbers are never reused, and a finished step becomes a row of the Done table.
 
-## 0. C++20 baseline — in progress
-
-[cxx20-baseline]. The fork's first commit, so every later step is written against it.
-
-- [x] Raise `cxx_std_14` and `CMAKE_CXX_STANDARD` in `CMakeLists.txt`, the version check in
-      `Macros.h`, the SYCL CMake modules, and the CI jobs and scripts that pin an older standard.
-- [x] Rewrite `AGENTS.md` rule 3 and the C++14 section of `.agents/conventions.md`; drop the
-      C++14 checks from `scripts/check_style.py`.
-- [x] Remove the deprecated Qt conversions from `Geometry/Transform.h` [q-names].
-- [ ] A focused set of existing tests built and passed under the new default with clang.
-
-Done when: the focused set passes on clang here, and nothing in the tree names C++14 as a
-requirement. The whole suite on GCC, Clang, and MSVC runs when a CI machine is available.
-
 ## 1. The spaces of EmrysFilter — not started
 
 [spaces-are-shape] (the space types only, not yet the shape parameter), [continuous-spaces-only],
@@ -99,3 +85,4 @@ EmrysFilter radar example types its state, measurement, and gain.
 
 | Step | What | Decisions |
 |---|---|---|
+| 0 | C++20 baseline | [cxx20-baseline], [q-names] |

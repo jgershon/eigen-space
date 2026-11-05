@@ -62,8 +62,8 @@ set(CL_SYCL_LANGUAGE_VERSION 220 CACHE STRING
   "Host language version to be used by trisYCL (default is: 220)")
 set(TRISYCL_CL_LANGUAGE_VERSION 220 CACHE STRING
   "Device language version to be used by trisYCL (default is: 220)")
-# triSYCL now requires c++17
-set(CMAKE_CXX_STANDARD 17)
+# triSYCL requires at least C++17; the tree requires C++20.
+set(CMAKE_CXX_STANDARD 20)
 set(CXX_STANDARD_REQUIRED ON)
 
 

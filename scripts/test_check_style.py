@@ -50,11 +50,6 @@ def test_conventions_flagged():
     assert_flags("Eigen/src/Core/Foo.h", "enum { Flags = 0 };\n", "static constexpr")
     assert_flags("Eigen/src/Core/Foo.h", "enum : unsigned int { Flags = 0 };\n", "static constexpr")
     assert_flags("Eigen/src/Core/Foo.h", "enum : std::uint32_t { Flags = 0 };\n", "static constexpr")
-    assert_flags("Eigen/src/Core/Foo.h", "S s = {.size = 3};\n", "designated initializer")
-    assert_flags("Eigen/src/Core/Foo.h", "if constexpr (kSize > 4) {}\n", "EIGEN_IF_CONSTEXPR")
-    assert_flags("test/foo.cpp", "std::optional<int> x;\n", "C++17/20 library facility")
-    assert_flags("test/foo.cpp", "std::any x;\n", "C++17/20 library facility")
-    assert_flags("test/foo.cpp", "std::filesystem::path p;\n", "C++17/20 library facility")
     assert_flags("Eigen/src/Core/Foo.h", "double x = std::sqrt(2.0);\n", "numext::")
     assert_flags("Eigen/src/Core/Foo.h", "double x = (std::sqrt)(2.0);\n", "numext::")
     assert_flags("Eigen/src/Core/Foo.h", "double x = std::exp2(2.0);\n", "numext::")
@@ -71,31 +66,18 @@ def test_conventions_flagged():
 def test_scoping():
     # Eigen's public module headers are C++ despite having no extension.
     assert_flags("Eigen/Core", "enum { Flags = 0 };\n", "static constexpr")
-    assert_flags("unsupported/Eigen/FFT", "if constexpr (kSize > 4) {}\n", "EIGEN_IF_CONSTEXPR")
+    assert_flags("unsupported/Eigen/FFT", "enum { Flags = 0 };\n", "static constexpr")
     # std:: math is only flagged in library implementation headers.
     assert_clean("test/foo.cpp", "double x = std::sqrt(2.0);\n")
     # The ZA-attribute rule covers only the SME kernel headers.
     assert_clean("test/product_sme.cpp", "inline int f() __arm_streaming { return 0; }\n")
-    # C++14 checks do not apply outside the C++14 trees.
-    assert_clean("benchmarks/Core/foo.cpp", "if constexpr (kSize > 4) {}\n")
+    # C++20 language features are the baseline and are not flagged anywhere.
+    assert_clean("Eigen/src/Core/Foo.h", "if constexpr (kSize > 4) {}\nS s = {.size = 3};\n"
+                                         "std::optional<int> x;\n")
     # Non-C++ files are ignored entirely.
     assert_clean("AGENTS.md", "enum { Flags = 0 };\nif constexpr (x) {}\n")
     # Only ADDED lines are reported: the same violations on unchanged lines stay silent.
     assert_clean("Eigen/src/Core/Foo.h", "enum { Flags = 0 };\nint x = 1;\n", added={2})
-    # Sources with a documented C++17 requirement are exempt from the C++14 checks...
-    assert_clean("test/sycl_basic.cpp", "if constexpr (kSize > 4) {}\n")
-    assert_clean("Eigen/src/Core/arch/SYCL/PacketMath.h", "if constexpr (kSize > 4) {}\n")
-    assert_clean("contrib/Eigen/src/Tensor/TensorDeviceSycl.h", "if constexpr (kSize > 4) {}\n")
-    assert_clean("contrib/test/tensor_sycl.cpp", "if constexpr (kSize > 4) {}\n")
-    assert_clean("contrib/Eigen/src/FFT/duccfft_impl.h", "if constexpr (kSize > 4) {}\n")
-    assert_clean("contrib/test/duccfft.cpp", "if constexpr (kSize > 4) {}\n")
-    assert_clean("failtest/structured_bindings_dynamic_matrix.cpp", "if constexpr (kSize > 4) {}\n")
-    assert_clean("failtest/structured_bindings_dynamic_array.cpp", "if constexpr (kSize > 4) {}\n")
-    assert_clean("failtest/structured_bindings_rowmajor.cpp", "if constexpr (kSize > 4) {}\n")
-    # A coincidental substring is not a documented C++17 requirement.
-    assert_flags("test/not_sycl_related.cpp", "if constexpr (kSize > 4) {}\n", "EIGEN_IF_CONSTEXPR")
-    assert_flags("contrib/Eigen/src/FFT/kissfft_impl.h", "if constexpr (kSize > 4) {}\n", "EIGEN_IF_CONSTEXPR")
-    # ...but not from the other conventions.
     assert_flags("test/sycl_basic.cpp", "std::integral_constant<bool, true> b;\n", "bool_constant")
 
 
@@ -128,15 +110,6 @@ def test_false_positive_probes():
     assert_clean("Eigen/src/Core/Foo.h", "using MyInt = int;\nstatic constexpr unsigned int Flags = 0;\n"
                                          "const char* p = nullptr;\nEIGEN_IF_CONSTEXPR (kSize > 4) {}\n"
                                          "double x = numext::sqrt(2.0);\n")
-
-
-def test_multiline_designated_initializer():
-    # The designator on its own line after `{` or `,` is still a C++20 designated initializer.
-    assert_flags("Eigen/src/Core/Foo.h", "S s = {\n    .size = 3,\n};\n", "designated initializer")
-    assert_flags("Eigen/src/Core/Foo.h", "S s = {\n    .a = 1,\n    .b = 2,\n};\n", "designated initializer")
-    # A wrapped member assignment is not: the previous code line does not end with `{` or `,`.
-    assert_clean("Eigen/src/Core/Foo.h", "obj\n    .member = value;\n")
-    assert_clean("Eigen/src/Core/Foo.h", "foo(bar)\n    .field = 1;\n")
 
 
 def test_context_across_diff_gaps():
@@ -199,18 +172,18 @@ def test_comment_verbosity():
 
 def test_multiline_literals():
     # Contents of a raw string spanning lines are literal, not code.
-    raw = 'const char* prog = R"cl(\nif constexpr (true) { std::optional<int> x; }\n)cl";\nint y = 1;\n'
+    raw = 'const char* prog = R"cl(\nenum { Flags = 0 }; std::integral_constant<bool, true> b;\n)cl";\nint y = 1;\n'
     assert_clean("Eigen/src/Core/Foo.h", raw)
     # Code after the raw string closes is lexed again.
     raw_then_code = 'auto s = R"(\ntext\n)"; std::integral_constant<bool, true> b;\n'
     assert_flags("Eigen/src/Core/Foo.h", raw_then_code, "bool_constant")
     # A backslash-spliced ordinary string stays a literal on its continuation lines.
-    spliced = 'const char* s = "first \\\nif constexpr (x) \\\nlast";\nint z = 1;\n'
+    spliced = 'const char* s = "first \\\nenum { Flags = 0 }; \\\nlast";\nint z = 1;\n'
     assert_clean("Eigen/src/Core/Foo.h", spliced)
     # A raw-string-looking suffix of an identifier is an ordinary string.
     assert_clean("Eigen/src/Core/Foo.h", 'auto v = myR"(not raw)";\n')
     # Single-line raw strings close on the same line.
-    assert_clean("Eigen/src/Core/Foo.h", 'auto s = R"(if constexpr NULL typedef)";\n')
+    assert_clean("Eigen/src/Core/Foo.h", 'auto s = R"(std::integral_constant<bool, NULL typedef)";\n')
 
 
 def test_hook_line_mapping():

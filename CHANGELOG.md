@@ -31,6 +31,8 @@ Bug fixes:
 - `IOFormat` could insert unwanted spaces between matrix rows when using custom row separators or prefixes.
 
 Breaking changes:
+- Eigen requires C++20. When building with GNU-compatible compilers, set `-std=c++20` or later; the CMake project defaults `CMAKE_CXX_STANDARD` to 20 and the `Eigen3::Eigen` target requires `cxx_std_20` (`design/decisions.md` [cxx20-baseline])
+- Removed the `Transform` conversions from and to Qt's `QMatrix` and `QTransform`, which `EIGEN_QT_SUPPORT` enabled. Copy the coefficients explicitly
 - `PaStiXSupport` now requires PaStiX 6.x; version 5 is no longer supported. `FindPASTIX.cmake` uses pkg-config metadata
   instead of dependency-selection components. Removed the unused `FindBLASEXT`, `FindHWLOC`, `FindSCOTCH` and
   `FindPTSCOTCH` modules. Renamed `FindMetis.cmake` to `FindMETIS.cmake` to match `find_package(METIS)` [#2256, !3467]
@@ -40,7 +42,6 @@ Breaking changes:
 
 Deprecations:
 - `ArrayBase::shiftRight<N>()` and `ArrayBase::shiftLeft<N>()`, in favour of `arithmeticShiftRight<N>()` and `logicalShiftLeft<N>()` [!2816]
-- The `Transform` conversions from and to Qt's `QMatrix` and `QTransform`, which `EIGEN_QT_SUPPORT` enables, in favor of copying the coefficients explicitly [!3413]
 
 Other changes:
 - The top-level `unsupported/` directory was renamed to `contrib/`. Existing

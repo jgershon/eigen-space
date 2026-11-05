@@ -58,6 +58,6 @@ RUN clang-tidy --version | grep -q 'LLVM version 18\.1\.3' \
            echo "missing shared library: $f"; exit 1; fi; \
        done \
     && printf '#include <immintrin.h>\n#include <iostream>\nint main() { std::cout << "ok\\n"; }\n' > /tmp/t.cpp \
-    && clang++ -std=c++14 -o /tmp/t /tmp/t.cpp && /tmp/t \
-    && clang-tidy -checks='-*,bugprone-*' /tmp/t.cpp -- -std=c++14 \
+    && clang++ -std=c++20 -o /tmp/t /tmp/t.cpp && /tmp/t \
+    && clang-tidy -checks='-*,bugprone-*' /tmp/t.cpp -- -std=c++20 \
     && rm /tmp/t /tmp/t.cpp

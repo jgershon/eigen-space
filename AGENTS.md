@@ -53,8 +53,8 @@ The wording of a rule sets its strength:
    box: use it only through its documented interface and measure it as shipped. Never disassemble, dump, debug into, or
    alter it; see [`.agents/provenance.md`](.agents/provenance.md). Never invent an attribution for AI-generated code. A
    `Co-Authored-By` trailer for the model that actually produced the change is accurate attribution, and is permitted.
-3. **Respect the header-only and C++14 contracts.** Supported headers must compile as C++14, unless a backend behind a
-   preprocessor guard has a documented newer requirement. In user code, examples, and public-behavior tests, include
+3. **Respect the header-only and C++20 contracts.** Supported headers must compile as C++20; a backend behind a
+   preprocessor guard may document a newer requirement. In user code, examples, and public-behavior tests, include
    umbrella headers such as `Eigen/Core` or `Eigen/SVD`, not files below `Eigen/src/` or `contrib/Eigen/src/`. Where
    nearby tests establish the pattern, a focused test of a private utility may include the utility's header directly.
    Those paths remain private even where the header has no `InternalHeaderCheck.h` guard. Definitions in public headers
@@ -185,8 +185,8 @@ argument, follow the established patterns nearby. Do not cast away constness fro
 a non-template definition or object to a public header and an ODR regression is plausible, add a link test that
 includes the header from multiple translation units.
 
-Pass fixed-size vectorizable Eigen objects by reference rather than by value. C++17 passes over-aligned objects by value
-safely, but the supported C++14 configurations cannot rely on that. See
+Pass fixed-size vectorizable Eigen objects by reference rather than by value. Since C++17 the language passes
+over-aligned objects by value safely, so this avoids copies rather than undefined behavior. See
 [`doc/PassingByValue.dox`](doc/PassingByValue.dox).
 
 Use `eigen_assert` for runtime preconditions that are part of Eigen's public debug behavior, and `eigen_internal_assert`

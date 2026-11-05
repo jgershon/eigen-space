@@ -166,9 +166,8 @@ finds no tests instead of reporting a failure, so the CI job runs `ctest` with `
   a view whose default layout is fixed, pin the layout explicitly.
 - When the change reasons about packets, alignment, or index width, cover `EIGEN_TEST_NO_EXPLICIT_VECTORIZATION`,
   `EIGEN_UNALIGNED_VECTORIZE=0`, or a narrower `EIGEN_DEFAULT_DENSE_INDEX_TYPE`.
-- Tests build optimized (`CMAKE_BUILD_TYPE` defaults to Release), and no CI job builds Debug. In C++14 an odr-used
-  `static constexpr` member of a class template needs a namespace-scope definition. Without one, every CI build links
-  and only an -O0 build fails; see [`conventions.md`](conventions.md). When adding such constants, build one Debug tree.
+- Tests build optimized (`CMAKE_BUILD_TYPE` defaults to Release), and no CI job builds Debug. When a change could
+  behave differently without optimization, build one Debug tree.
 - Compiler fast-math coverage comes only from the targets that `test/CMakeLists.txt` registers with fast-math flags.
   The smoke list includes `packetmath_fastmath`, `packetmath_fastmath_generic_16` where vector extensions are
   available, `bfloat16_classification_fastmath`, and parts of `fastmath`, `bdcsvd_fastmath`, and

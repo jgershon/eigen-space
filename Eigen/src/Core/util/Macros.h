@@ -801,13 +801,11 @@
 // but in practice we should not rely on them but rather on the availability of
 // individual features as defined later.
 // This is why there is no EIGEN_HAS_CXX17.
-#if EIGEN_MAX_CPP_VER < 14 || EIGEN_COMP_CXXVER < 14 || (EIGEN_COMP_MSVC_STRICT && EIGEN_COMP_MSVC < 1910) || \
-    (EIGEN_COMP_ICC && EIGEN_COMP_ICC < 1700) || (EIGEN_COMP_CLANG_STRICT && EIGEN_COMP_CLANG < 390) ||       \
-    (EIGEN_COMP_CLANGAPPLE && EIGEN_COMP_CLANGAPPLE < 9000000) || (EIGEN_COMP_GNUC_STRICT && EIGEN_COMP_GNUC < 510)
-#error Eigen requires at least c++14 support.
+#if EIGEN_MAX_CPP_VER < 20 || EIGEN_COMP_CXXVER < 20
+#error Eigen requires at least C++20 support.
 #endif
 
-// Deprecated compatibility macro. Eigen requires C++14 and no longer uses this
+// Deprecated compatibility macro. Eigen requires C++20 and no longer uses this
 // token internally, but keep it defined so downstream #if EIGEN_HAS_C99_MATH
 // checks do not trip -Wundef.
 #ifndef EIGEN_HAS_C99_MATH

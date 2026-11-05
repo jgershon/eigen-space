@@ -5,7 +5,7 @@ Use this guide when answering merge request review comments.
 A code suggestion posted in review is a sketch that has not been compiled. Verify it like your own work before adopting
 it. In particular, check that it:
 
-- compiles under the C++14 baseline;
+- compiles under the C++20 baseline;
 - uses matching `Matrix`/`Array` and expression types;
 - keeps any grouping of operations chosen deliberately for numerical reasons.
 

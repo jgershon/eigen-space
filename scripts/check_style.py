@@ -7,7 +7,7 @@
 Flags the problems that recur in this repository's code reviews and that no
 clang-tidy check states: narration-comment verbosity (see the comment rules in
 ``AGENTS.md``), ``enum`` constant blocks, ``std::integral_constant<bool,...>``,
-C++17-and-later constructs in the C++14 trees, ``std::`` math in library
+``std::`` math in library
 headers where ``numext::`` is required, and SME streaming helpers without a
 ZA attribute.  Conventions clang-tidy *can* state
 live in ``.clang-tidy`` and are checked by ``clang_tidy_hook.py`` against the
@@ -44,23 +44,6 @@ from style_common import (REPO_ROOT, added_lines_from_diff, added_from_structure
                           diff_added_lines, hook_added_line_numbers, hook_edit_snippets,
                           hook_post_image_and_added, is_cxx_path, read_post_image)
 
-# Trees whose headers and tests must compile as C++14 (see AGENTS.md rule 3).
-# unsupported/Eigen/ is kept for the legacy umbrella shims that still live there;
-# the implementation tree itself is contrib/.
-CXX14_TREES = ("Eigen/", "contrib/Eigen/", "unsupported/Eigen/", "test/", "contrib/test/", "failtest/", "blas/",
-               "lapack/")
-# Guarded exceptions with a documented newer requirement: SYCL sources build
-# only in the C++17 SYCL configurations, while duccfft and the structured-
-# binding failtests explicitly select C++17 in their test CMakeLists files.
-CXX17_PREFIXES = ("Eigen/src/Core/arch/SYCL/",)
-CXX17_FILES = {
-    "test/sycl_basic.cpp",
-    "contrib/Eigen/src/FFT/duccfft_impl.h",
-    "contrib/test/duccfft.cpp",
-    "failtest/structured_bindings_dynamic_matrix.cpp",
-    "failtest/structured_bindings_dynamic_array.cpp",
-    "failtest/structured_bindings_rowmajor.cpp",
-}
 # Library implementation headers, where numext:: is required over std:: math.
 LIBRARY_SRC_TREES = ("Eigen/src/", "contrib/Eigen/src/")
 # Clang 23+ will not inline a private-ZA function into a caller with ZA state, and the compilers CI
@@ -111,21 +94,6 @@ CODE_CHECKS = [
     (r"^\s*enum\s*(?::[^{}]+)?\{", "enum constant block: trait/evaluator constants are static constexpr in new "
                                    "code; Flags is `unsigned int`"),
 ]
-CXX14_CHECKS = [
-    # Awaiting the parked eigen-if-constexpr query.  A C++14 build does not
-    # reliably reject this on its own: clang accepts `if constexpr` as an
-    # extension and only warns under -Wc++17-extensions.
-    (r"\bif\s+constexpr\b", "if constexpr: supported code compiles as C++14; use EIGEN_IF_CONSTEXPR (...) with a "
-                            "condition that is valid either way"),
-    # These do fail the default C++14 build; flagging them at edit time just
-    # shortens the loop, and covers headers no built target happens to include.
-    (r"\bstd::(any|span|optional|variant|string_view|byte|filesystem|void_t)\b",
-     "C++17/20 library facility: the supported baseline is C++14"),
-]
-# Also C++14-tree only (CMakeLists.txt defaults CMAKE_CXX_STANDARD to 14), and
-# not expressible as a matcher — designated initializers do not parse in C++14,
-# so there is no AST for a check to match.
-DESIGNATED_MSG = "designated initializer: C++20-only; use aggregate assignment with /*name=*/ comments"
 
 
 RAW_PREFIX = re.compile(r"(?:^|[^0-9A-Za-z_])(?:u8|u|U|L)?R$")
@@ -293,34 +261,8 @@ def check_comments(comment_only, doxygen_only, added, findings):
             block_start = None
 
 
-def check_designated_initializer(code_lines, line_no, findings):
-    code = code_lines[line_no - 1]
-    hit = re.search(r"[{,]\s*\.\w+\s*=", code)
-    if not hit and re.match(r"\s*\.\w+\s*=", code):
-        # A line-leading designator continues a braced initializer only when
-        # the previous code line ends with `{` or `,`; anything else is a
-        # wrapped member access or assignment.
-        for prev in range(line_no - 2, -1, -1):
-            prev_code = code_lines[prev].rstrip()
-            if prev_code:
-                hit = prev_code.endswith("{") or prev_code.endswith(",")
-                break
-    if hit:
-        findings.append((line_no, DESIGNATED_MSG))
-        return True
-    return False
-
-
 def check_conventions(rel_path, code_lines, added, findings):
     checks = list(CODE_CHECKS)
-    cxx17_path = (
-        rel_path in CXX17_FILES
-        or rel_path.startswith(CXX17_PREFIXES)
-        or (rel_path.startswith("contrib/Eigen/src/Tensor/") and rel_path.endswith("Sycl.h"))
-        or (rel_path.startswith("contrib/test/") and rel_path.endswith("_sycl.cpp"))
-    )
-    if rel_path.startswith(CXX14_TREES) and not cxx17_path:
-        checks += CXX14_CHECKS
     if rel_path.startswith(LIBRARY_SRC_TREES):
         checks.append((r"(?:\(\s*)?\bstd::(?:%s)\s*(?:\)\s*)?\(" % STD_MATH,
                        "std:: math call in a library header: use the numext:: equivalent "
@@ -337,9 +279,6 @@ def check_conventions(rel_path, code_lines, added, findings):
             if rx.search(code_lines[line_no - 1]):
                 findings.append((line_no, message))
                 break  # one report per pattern per file
-    for line_no in added_sorted:
-        if check_designated_initializer(code_lines, line_no, findings):
-            break
 
 
 def find_findings(rel_path, lines, added):

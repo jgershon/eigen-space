@@ -140,7 +140,7 @@ def test_gate_macros():
 
 def test_compile_args():
     args = compile_args("Eigen/src/Core/Block.h")
-    assert "-std=c++14" in args and "-I" + REPO_ROOT in args
+    assert "-std=c++20" in args and "-I" + REPO_ROOT in args
     # Test sources include main.h from test/.
     assert any(a.endswith("/test") for a in compile_args("test/block.cpp"))
     assert any(a.endswith("/test") for a in compile_args("contrib/test/tensor_block_access.cpp"))
@@ -192,7 +192,7 @@ def test_end_to_end_line_filter():
         cmd = ["clang-tidy", "--quiet", "--checks=-*,modernize-use-using",
                "--header-filter=probe\\.h",
                "--line-filter=" + json.dumps([{"name": "probe.h", "lines": [[3, 3]]}]),
-               source, "--", "-std=c++14", "-I" + tmp]
+               source, "--", "-std=c++20", "-I" + tmp]
         out = subprocess.run(cmd, capture_output=True, text=True, timeout=60).stdout
         hits = [line for line in out.splitlines() if "modernize-use-using" in line]
         assert len(hits) == 1, "expected exactly the added line, got %r" % (hits,)
