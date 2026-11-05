@@ -17,6 +17,7 @@ path = [
     "INSTALL",
     "README.md",
     "RELEASING.md",
+    "design/*.md",
     "signature_of_eigen3_matrix_library",
 ]
 SPDX-FileCopyrightText = "The Eigen Authors"
