@@ -476,8 +476,8 @@ template <typename T>
 concept IsUniformLeaf = decltype(leafExtent(std::declval<const T*>()))::value;
 
 /** \internal Declared, never defined: true for a pointer to a Periodic or a type derived from one. */
-template <PeriodicInterval Interval, int Dimension, int MaxDimension>
-std::true_type periodicLeaf(const Periodic<Interval, Dimension, MaxDimension>*);
+template <auto U, PeriodicInterval Interval, int Dimension, int MaxDimension>
+std::true_type periodicLeaf(const QPeriodic<U, Interval, Dimension, MaxDimension>*);
 
 std::false_type periodicLeaf(const void*);
 
@@ -518,7 +518,8 @@ template <typename S, typename F>
 void forEachLeaf(const S& space, F&& f, Index offset = 0) {
   if constexpr (IsComposite<S>) {
     [&]<std::size_t... Idx>(std::index_sequence<Idx...>) {
-      ((forEachLeaf(space.template block<Idx>(), f, offset), offset += space.template block<Idx>().valueDimension()), ...);
+      ((forEachLeaf(space.template block<Idx>(), f, offset), offset += space.template block<Idx>().valueDimension()),
+       ...);
     }(std::make_index_sequence<std::tuple_size_v<CompositeBlocks<S>>>{});
   } else if constexpr (IsRepeated<S>) {
     for (Index k = 0; k < space.count(); ++k) {

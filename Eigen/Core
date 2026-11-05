@@ -508,11 +508,13 @@ using std::size_t;
 #include "src/Core/GlobalFunctions.h"
 
 #include "src/Core/Spaces/Space.h"
+#include "src/Core/Spaces/Unit.h"
 #include "src/Core/Spaces/Coordinates.h"
 #include "src/Core/Spaces/Composite.h"
 #include "src/Core/Spaces/TagPath.h"
 #include "src/Core/Spaces/Subspace.h"
 #include "src/Core/Spaces/Indexing.h"
+#include "src/Core/Spaces/Dual.h"
 // IWYU pragma: end_exports
 
 #include "src/Core/util/ReenableStupidWarnings.h"

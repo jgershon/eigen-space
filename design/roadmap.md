@@ -21,22 +21,6 @@ from the fork and deletes its own `Spaces/` directory, except Discrete.h [contin
 Done when: EmrysFilter's tests pass against the fork with its own `Spaces/` directory reduced to
 Discrete.h, and nothing in EmrysFilter names `Eigen::internal`.
 
-## 2. Units and duals — not started
-
-[mandatory-units], [dual-spaces]. The unit on every leaf, the dual, and mp-units available to the
-tests.
-
-- [ ] The unit concept and `Eigen::dimensionless`; the unit parameter on `Linear` and `Periodic`,
-      whose interval becomes a quantity.
-- [ ] `Dual<S>`: inverts units, distributes over `Composite` and `Repeated`, collapses on itself.
-- [ ] mp-units for the tests: `find_package(mp-units CONFIG)` with a FetchContent fallback on a
-      pinned release, an option to forbid the fetch, `cmake_minimum_required` raised to 3.25,
-      and the backend reported as the other optional ones are. The unit-concept test instantiates
-      with mp-units units beside the built-in ones.
-
-Done when: the unit and dual tests pass with and without mp-units found, and a product of two
-leaves whose units cancel is dimensionless.
-
 ## 3. Shape on spaces — not started
 
 [spaces-are-shape], [q-names], [space-first], [dual-spaces], [typed-blocks],
@@ -76,3 +60,4 @@ EmrysFilter radar example types its state, measurement, and gain.
 |---|---|---|
 | 0 | C++20 baseline | [cxx20-baseline], [q-names] |
 | 1 | The continuous spaces of EmrysFilter in Core, the reset in `Eigen/Spaces`, `UnitQuaternion` in Geometry, AutoDiff promoted, the bibliography page | [continuous-spaces-only], [autodiff-supported], [bibliography-page], the thirteen in spaces-decisions.md |
+| 2 | The unit on every leaf (`QLinear`, `QPeriodic`, the Q angles, with the plain names as dimensionless aliases), the `Unit` concept and `dimensionless`, `Dual`, `unitAt()` and `unitOf()`, and mp-units fetched for the tests | [mandatory-units], [dual-spaces] |

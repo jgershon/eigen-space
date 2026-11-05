@@ -1,9 +1,10 @@
 # SPDX-FileCopyrightText: The Eigen Authors
 # SPDX-License-Identifier: MPL-2.0
 
-# 3.18 for CMake's CUDA language, which cmake/EigenGpuTesting.cmake enables for the .cu tests. Debian 11 ships
-# 3.18.4; the HIP language and the `native` architecture ask for more, scoped to the options that need them.
-cmake_minimum_required(VERSION 3.18)
+# 3.25 for FetchContent's FIND_PACKAGE_ARGS and for mp-units' own CMake, which the tests of the unit-carrying
+# spaces fetch when no package is installed (cmake/EigenMPUnits.cmake). The HIP language and the `native`
+# architecture ask for more, scoped to the options that need them.
+cmake_minimum_required(VERSION 3.25)
 
 #==============================================================================
 # CMake Policy issues.
@@ -144,6 +145,7 @@ if(NOT WIN32 OR NOT CMAKE_HOST_SYSTEM_NAME MATCHES Windows)
   option(EIGEN_BUILD_PKGCONFIG "Build pkg-config .pc file for Eigen" ${PROJECT_IS_TOP_LEVEL})
 endif()
 option(EIGEN_BUILD_CMAKE_PACKAGE "Enables the creation of EigenConfig.cmake and related files" ${PROJECT_IS_TOP_LEVEL})
+option(EIGEN_FETCH_MPUNITS "Fetch mp-units for the tests of the unit-carrying spaces when no package is installed" ON)
 
 # Set to OFF to place no Eigen file under CMAKE_INSTALL_PREFIX.  This covers the
 # headers, eigen3.pc, the CMake package files, and the BLAS/LAPACK libraries.

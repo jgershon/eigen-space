@@ -8,6 +8,9 @@ New features:
 - `UnitQuaternion`, an attitude as a space, in Geometry ([unit-quaternion])
 - AutoDiff is a supported module, `Eigen/AutoDiff`; `contrib/Eigen/AutoDiff` and `unsupported/Eigen/AutoDiff` forward to it ([autodiff-supported])
 - `EIGEN_NO_UNIQUE_ADDRESS`, the `[[no_unique_address]]` attribute in the spelling each compiler honors
+- A unit on every leaf space: `QLinear<U, N, Max>`, `QPeriodic<U, Interval, N, Max>`, and `QRadiansPi<U>` and the other named angles take a unit first, and `Linear`, `Periodic`, and the plain named angles are their dimensionless aliases. The `Unit` concept and `Eigen::dimensionless` define what a unit is; mp-units' units satisfy it as they are. `unitAt<S, Path>()` and `unitOf<S>()` read units ([mandatory-units])
+- `Dual<S>`, the dual of a space: the same blocks and tags with every unit inverted, collapsing on a dual of a dual and on a dimensionless space ([dual-spaces])
+- `EIGEN_FETCH_MPUNITS` (on by default): the tests of the unit-carrying spaces use an installed mp-units package, or fetch the pinned release when there is none (`cmake/EigenMPUnits.cmake`)
 - `AutoDiffScalar` overloads of `atan`, `log1p`, `expm1`, `log2`, `log10`, `cbrt`, `asinh`, `acosh` and `atanh` [#234, !3448]
 - ComplexQZ implementation [!1962]
 - Generic clang vector extension backend [!2051]

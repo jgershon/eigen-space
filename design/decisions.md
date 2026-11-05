@@ -131,32 +131,46 @@ each leaf would let the two axes disagree.
 
 *Every leaf space has a unit; the plain spaces are dimensionless.*
 
-**Rule.** A leaf space (`Linear`, `Periodic`, a space written from scratch) carries a unit as a
-structural template parameter beside its dimension, defaulting to `Eigen::dimensionless`. A unit is
-any structural value satisfying Eigen's unit concept: closed under product and quotient, with
-`constexpr` equality and `dimensionless` as the identity; Eigen defines the concept and its
-dimensionless unit and nothing else. mp-units' unit objects satisfy it, and the binding maps
-mp-units' `one` onto `dimensionless`, so a product whose units cancel is assignable to a plain
-`MatrixXd`. Two spaces are compatible when their structure and their units agree. `Periodic`'s
-interval is a quantity, so `RadiansPi` and `Degrees360` differ in unit and not only in period.
+**Rule.** A leaf space carries one unit for all its coordinates, as its first template argument:
+`QLinear<U, N, Max>` and `QPeriodic<U, Interval, N, Max>`, with the named angles `QRadiansPi<U, N,
+Max>` and the other three. The plain names are the dimensionless aliases, `Linear<N, Max>` for
+`QLinear<dimensionless, N, Max>` and likewise `Periodic`, `RadiansPi`, `Radians2Pi`, `Degrees180`,
+and `Degrees360`, so every spelling written before the unit existed keeps its type, and a space
+written from scratch declares no unit and is dimensionless. The unit is first so that the maximum
+dimension need not be written to give it; the dimension is second; the maximum stays last. A unit is
+any structural value satisfying Eigen's `Unit` concept: closed under product and quotient, with
+`constexpr` equality, and not a number; `Eigen::dimensionless` is the identity, which a foreign unit
+absorbs on either side of a product or quotient and equals exactly when it is the dimensionless unit
+of its own system. Eigen defines the concept and `dimensionless` and nothing else; mp-units' unit
+objects satisfy it as they are. `unitAt<S, Path>()` reads the unit of the block a path names, and
+`unitOf<S>()` a space's where its blocks agree. `QPeriodic`'s interval is read in its unit, so
+`QDegrees360<si::degree>` and `QRadians2Pi<si::radian>` differ in unit and not only in period.
 
-**Why.** One rule in every check, product, and dual, instead of a unit case and a no-unit case. The
-legacy aliases are dimensionless by construction, so no plain matrix changes meaning, and the angle
-unit stops being a convention in a type's name.
+**Why.** One unit per leaf, not a tuple per space: a leaf is already uniform by construction (one
+normalize rule, one period), a mixed-unit state is already a Composite of tagged leaves, and a
+resizable or repeated block takes one unit where a tuple the length of the space could not be
+written. One rule in every check, product, and dual, instead of a unit case and a no-unit case. The
+Q prefix follows [q-names]: no Q, no units, for leaves as for matrices.
 
-**Rejected.** An optional unit. mp-units as a dependency of Core. A `Quantity<Unit, Space>`
-adaptor: the unit is uniform within a block, as the period is, and belongs on the leaf.
+**Rejected.** An optional unit. mp-units as a dependency of Core. A tuple of units the length of the
+space. The unit as a trailing parameter, `Linear<3, 3, si::metre>`, which made the rarest parameter
+mandatory; as the second, `Linear<3, si::metre>`, which broke `Linear<Dynamic, 8>`. Trailing letters
+for the dimensionless alias on the model of `MatrixXd`, `LinearD`: those letters name concrete sizes
+and scalars, and `D` already reads as dynamic or double. A `Quantity<Unit, Space>` adaptor.
 
-**Where.** `Eigen/src/Core/Spaces/Unit.h`, `Coordinates.h`.
+**Where.** `Eigen/src/Core/Spaces/Unit.h`, `Coordinates.h`, `Dual.h`; `test/spaces_units.cpp`.
 
 ## dual-spaces
 
 *`Dual<S>` types the column side of a linear map; Hart's rules type every operation.*
 
-**Rule.** Entry (i, j) of `QMatrix<R, C>` has unit u_R(i) u_C(j). `Dual<S>` inverts every unit of
-`S`, distributes over `Composite` and `Repeated`, and `Dual<Dual<S>>` is `S`; a dimensionless space
-is its own dual. A linear map from X to Z is `QMatrix<Z, Dual<X>>`, a covariance of x is
-`QMatrix<X, X>`, and an information matrix is `QMatrix<Dual<X>, Dual<X>>`. The operations:
+**Rule.** Entry (i, j) of `QMatrix<R, C>` has unit u_R(i) u_C(j). `Dual<S>` is a wrapper,
+`DualSpace<S>`, that keeps the blocks and tags of `S` and reports every unit inverted, so that a tag
+path into X names the same block of `Dual<X>`; it is linear, since covectors add as plain vectors.
+The alias collapses: `Dual<Dual<S>>` is `S`, and a space whose every unit is dimensionless, tagged
+or not, is its own dual, so a plain matrix's spaces meet the product rule with no special case. A
+linear map from X to Z is `QMatrix<Z, Dual<X>>`, a covariance of x is `QMatrix<X, X>`, and an
+information matrix is `QMatrix<Dual<X>, Dual<X>>`. The operations:
 
 - sum, difference, and cwise operations: equal spaces, where `Linear<Dynamic>` is compatible with
   `Linear<n>` of the same unit and keeps today's run-time size check;
@@ -175,10 +189,11 @@ either, which is the classic mistake they catch. Units per block, not per entry,
 
 **Rejected.** A type per row and per column (TypedLinearAlgebra): N + M types, no dynamic sizes.
 Typing through the scalar, `Matrix<quantity<U>>`, as mp-units and Au do: one unit for the whole
-matrix, so no state vector and no covariance.
+matrix, so no state vector and no covariance. `Dual<X>` as the leaf with its unit inverted, which
+would drop the tags and with them addressing on the column side of a Jacobian.
 
-**Where.** `Eigen/src/Core/Spaces/Dual.h`; `CwiseBinaryOp.h`, `Product.h`, `Transpose.h`,
-`Inverse.h`, `Solve.h`, `Redux.h`, `VectorwiseOp.h`, `Dot.h`.
+**Where.** `Eigen/src/Core/Spaces/Dual.h`; the rules in `CwiseBinaryOp.h`, `Product.h`,
+`Transpose.h`, `Inverse.h`, `Solve.h`, `Redux.h`, `VectorwiseOp.h`, `Dot.h` (step 3).
 
 ## typed-blocks
 

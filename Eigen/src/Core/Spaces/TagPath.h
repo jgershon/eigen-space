@@ -37,10 +37,12 @@ namespace internal {
 /** \internal A library space type itself rather than a tag derived from one, which a path can't name. */
 template <typename T>
 inline constexpr bool IsUntagged = false;
-template <int Dimension, int MaxDimension>
-inline constexpr bool IsUntagged<Linear<Dimension, MaxDimension>>{true};
-template <PeriodicInterval Interval, int Dimension, int MaxDimension>
-inline constexpr bool IsUntagged<Periodic<Interval, Dimension, MaxDimension>>{true};
+template <auto U, int Dimension, int MaxDimension>
+inline constexpr bool IsUntagged<QLinear<U, Dimension, MaxDimension>>{true};
+template <auto U, PeriodicInterval Interval, int Dimension, int MaxDimension>
+inline constexpr bool IsUntagged<QPeriodic<U, Interval, Dimension, MaxDimension>>{true};
+template <typename S>
+inline constexpr bool IsUntagged<DualSpace<S>>{true};
 template <typename... Blocks>
 inline constexpr bool IsUntagged<Composite<Blocks...>>{true};
 template <typename Block, int MaxCount>

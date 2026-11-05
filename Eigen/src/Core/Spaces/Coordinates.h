@@ -50,36 +50,47 @@ class LeafExtent<Dynamic, MaxDimension> {
 }  // namespace internal
 
 /** \ingroup Spaces_Module
- * \brief \a Dimension_ plain coordinates, or a resizable run of at most \a MaxDimension_ of them if
+ * \brief \a Dimension_ plain coordinates in the unit \a U, or a resizable run of at most \a MaxDimension_ of them if
  * \a Dimension_ is \c Dynamic.
  *
  * The default space everywhere: when fixed, an empty type. It has no normalize() and is its
- * own difference space, which is what makes it linear (design/decisions.md [linear-space]).
+ * own difference space, which is what makes it linear (design/decisions.md [linear-space]). Every coordinate has the
+ * unit \a U, which comes first so that the maximum dimension need not be written to give it; the dimensionless leaf is
+ * spelled Linear [mandatory-units].
  */
-template <int Dimension_ = 1, int MaxDimension_ = Dimension_>
-struct Linear : internal::LeafExtent<Dimension_, MaxDimension_> {
+template <Unit auto U, int Dimension_ = 1, int MaxDimension_ = Dimension_>
+struct QLinear : internal::LeafExtent<Dimension_, MaxDimension_> {
   static_assert(Dimension_ == Dynamic || Dimension_ >= 0);
   static_assert(Dimension_ == Dynamic || MaxDimension_ == Dimension_, "a fixed size is its own maximum");
   static constexpr int FixedValueDimension = Dimension_ == Dynamic ? 0 : Dimension_;  ///< the fixed coordinates
   static constexpr int ValueDimensionStep = Dimension_ == Dynamic ? 1 : 0;  ///< one coordinate per element if resizable
   static constexpr int MaxValueDimension = MaxDimension_;                   ///< the largest valid size, or Dynamic
 
-  Linear() = default;
+  QLinear() = default;
 
-  /** \a n coordinates of a resizable Linear. */
-  explicit Linear(Index n)
+  /** \a n coordinates of a resizable QLinear. */
+  explicit QLinear(Index n)
     requires(Dimension_ == Dynamic)
   {
     this->resize(n);
   }
 
-  /** Equal when every stored parameter and size is; a fixed-size Linear is always equal. */
-  friend bool operator==(const Linear&, const Linear&) = default;
+  /** \returns the unit of every coordinate, \a U */
+  static constexpr auto unit() { return U; }
+
+  /** Equal when every stored parameter and size is; a fixed-size QLinear is always equal. */
+  friend bool operator==(const QLinear&, const QLinear&) = default;
 };
 
 /** \ingroup Spaces_Module
+ * \brief \a Dimension dimensionless plain coordinates: QLinear with the unit left out.
+ */
+template <int Dimension = 1, int MaxDimension = Dimension>
+using Linear = QLinear<dimensionless, Dimension, MaxDimension>;
+
+/** \ingroup Spaces_Module
  * \brief Where a Periodic coordinate's values lie: the half-open interval
- * <tt>[lower, upper)</tt>, whose width is the period. Both ends must be given: an omitted
+ * <tt>[lower, upper)</tt>, whose width is the period, in the coordinate's unit. Both ends must be given: an omitted
  * one is NaN, which Periodic rejects.
  */
 struct PeriodicInterval {
@@ -88,21 +99,22 @@ struct PeriodicInterval {
 };
 
 /** \ingroup Spaces_Module
- * \brief \a Dimension_ coordinates that wrap with a common period, such as angles or DFT bins.
+ * \brief \a Dimension_ coordinates in the unit \a U that wrap with a common period, such as angles or DFT bins.
  *
  * Values are kept in <tt>[lower(), upper())</tt> and differences in
- * <tt>[-period()/2, period()/2)</tt>: the difference space is the Periodic on that interval,
+ * <tt>[-period()/2, period()/2)</tt>, both in the unit \a U: the difference space is the QPeriodic on that interval,
  * so RadiansPi is its own and Degrees360's is Degrees180. The interval is a template argument, so a fixed-size
- * Periodic is an empty type: <tt>struct Bin : Periodic<{.lower = 0.0, .upper = 256.0}> {};</tt>.
+ * QPeriodic is an empty type: <tt>struct Bin : QPeriodic<dimensionless, {.lower = 0.0, .upper = 256.0}> {};</tt>.
  * The interval has no default (design/decisions.md [coordinate-parameters]). The common angles are named
- * RadiansPi, Radians2Pi, Degrees180, and Degrees360.
+ * QRadiansPi, QRadians2Pi, QDegrees180, and QDegrees360, and the dimensionless leaves are spelled Periodic and
+ * RadiansPi, Radians2Pi, Degrees180, Degrees360 [mandatory-units].
  *
- * A Gaussian on a Periodic coordinate is a Gaussian in its tangent space, valid while its standard
+ * A Gaussian on a periodic coordinate is a Gaussian in its tangent space, valid while its standard
  * deviation is small against the period; a spread on the order of the period is better held by
  * particles, a grid, or a mixture [tangent-gaussians].
  */
-template <PeriodicInterval Interval, int Dimension_ = 1, int MaxDimension_ = Dimension_>
-class Periodic : public internal::LeafExtent<Dimension_, MaxDimension_> {
+template <Unit auto U, PeriodicInterval Interval, int Dimension_ = 1, int MaxDimension_ = Dimension_>
+class QPeriodic : public internal::LeafExtent<Dimension_, MaxDimension_> {
  public:
   static_assert(Dimension_ == Dynamic || Dimension_ >= 1);
   static_assert(Dimension_ == Dynamic || MaxDimension_ == Dimension_, "a fixed size is its own maximum");
@@ -115,14 +127,17 @@ class Periodic : public internal::LeafExtent<Dimension_, MaxDimension_> {
   static constexpr int ValueDimensionStep = Dimension_ == Dynamic ? 1 : 0;  ///< one coordinate per element if resizable
   static constexpr int MaxValueDimension = MaxDimension_;                   ///< the largest valid size, or Dynamic
 
-  Periodic() = default;
+  QPeriodic() = default;
 
-  /** \a n coordinates of a resizable Periodic. */
-  explicit Periodic(Index n)
+  /** \a n coordinates of a resizable QPeriodic. */
+  explicit QPeriodic(Index n)
     requires(Dimension_ == Dynamic)
   {
     this->resize(n);
   }
+
+  /** \returns the unit of every coordinate, \a U, in which the interval is read */
+  static constexpr auto unit() { return U; }
 
   /** \returns the lower end of the interval of values */
   static consteval double lower() { return Interval.lower; }
@@ -141,10 +156,10 @@ class Periodic : public internal::LeafExtent<Dimension_, MaxDimension_> {
     writable(block) = block.unaryExpr([](auto x) { return internal::wrapValue<lower(), period()>(x); });
   }
 
-  /** The Periodic on <tt>[-period()/2, period()/2)</tt>, with the same size. */
+  /** The QPeriodic on <tt>[-period()/2, period()/2)</tt>, in the same unit, with the same size. */
   auto difference() const {
     using Difference =
-        Periodic<PeriodicInterval{.lower = -period() / 2, .upper = period() / 2}, Dimension_, MaxDimension_>;
+        QPeriodic<U, PeriodicInterval{.lower = -period() / 2, .upper = period() / 2}, Dimension_, MaxDimension_>;
     if constexpr (Dimension_ == Dynamic) {
       return Difference{this->valueDimension()};
     } else {
@@ -152,34 +167,65 @@ class Periodic : public internal::LeafExtent<Dimension_, MaxDimension_> {
     }
   }
 
-  /** Equal when every stored parameter and size is; a fixed-size Periodic is always equal. */
-  friend bool operator==(const Periodic&, const Periodic&) = default;
+  /** Equal when every stored parameter and size is; a fixed-size QPeriodic is always equal. */
+  friend bool operator==(const QPeriodic&, const QPeriodic&) = default;
 };
 
 /** \ingroup Spaces_Module
- * \brief \a Dimension angles in radians, in <tt>[-π, π)</tt>.
+ * \brief Dimensionless coordinates that wrap on \a Interval: QPeriodic with the unit left out.
  */
-template <int Dimension = 1, int MaxDimension = Dimension>
-using RadiansPi =
-    Periodic<PeriodicInterval{.lower = -std::numbers::pi, .upper = std::numbers::pi}, Dimension, MaxDimension>;
+template <PeriodicInterval Interval, int Dimension = 1, int MaxDimension = Dimension>
+using Periodic = QPeriodic<dimensionless, Interval, Dimension, MaxDimension>;
 
 /** \ingroup Spaces_Module
- * \brief \a Dimension angles in radians, in <tt>[0, 2π)</tt>.
+ * \brief \a Dimension angles in <tt>[-π, π)</tt>, in the unit \a U (radians, in the system the unit comes from).
  */
-template <int Dimension = 1, int MaxDimension = Dimension>
-using Radians2Pi = Periodic<PeriodicInterval{.lower = 0.0, .upper = 2 * std::numbers::pi}, Dimension, MaxDimension>;
+template <Unit auto U, int Dimension = 1, int MaxDimension = Dimension>
+using QRadiansPi =
+    QPeriodic<U, PeriodicInterval{.lower = -std::numbers::pi, .upper = std::numbers::pi}, Dimension, MaxDimension>;
 
 /** \ingroup Spaces_Module
- * \brief \a Dimension angles in degrees, in <tt>[-180, 180)</tt>.
+ * \brief \a Dimension angles in <tt>[0, 2π)</tt>, in the unit \a U.
  */
-template <int Dimension = 1, int MaxDimension = Dimension>
-using Degrees180 = Periodic<PeriodicInterval{.lower = -180.0, .upper = 180.0}, Dimension, MaxDimension>;
+template <Unit auto U, int Dimension = 1, int MaxDimension = Dimension>
+using QRadians2Pi =
+    QPeriodic<U, PeriodicInterval{.lower = 0.0, .upper = 2 * std::numbers::pi}, Dimension, MaxDimension>;
 
 /** \ingroup Spaces_Module
- * \brief \a Dimension angles in degrees, in <tt>[0, 360)</tt>, such as a compass heading.
+ * \brief \a Dimension angles in <tt>[-180, 180)</tt>, in the unit \a U (degrees, in the system the unit comes from).
+ */
+template <Unit auto U, int Dimension = 1, int MaxDimension = Dimension>
+using QDegrees180 = QPeriodic<U, PeriodicInterval{.lower = -180.0, .upper = 180.0}, Dimension, MaxDimension>;
+
+/** \ingroup Spaces_Module
+ * \brief \a Dimension angles in <tt>[0, 360)</tt>, in the unit \a U, such as a compass heading.
+ */
+template <Unit auto U, int Dimension = 1, int MaxDimension = Dimension>
+using QDegrees360 = QPeriodic<U, PeriodicInterval{.lower = 0.0, .upper = 360.0}, Dimension, MaxDimension>;
+
+/** \ingroup Spaces_Module
+ * \brief \a Dimension dimensionless angles in radians, in <tt>[-π, π)</tt>.
  */
 template <int Dimension = 1, int MaxDimension = Dimension>
-using Degrees360 = Periodic<PeriodicInterval{.lower = 0.0, .upper = 360.0}, Dimension, MaxDimension>;
+using RadiansPi = QRadiansPi<dimensionless, Dimension, MaxDimension>;
+
+/** \ingroup Spaces_Module
+ * \brief \a Dimension dimensionless angles in radians, in <tt>[0, 2π)</tt>.
+ */
+template <int Dimension = 1, int MaxDimension = Dimension>
+using Radians2Pi = QRadians2Pi<dimensionless, Dimension, MaxDimension>;
+
+/** \ingroup Spaces_Module
+ * \brief \a Dimension dimensionless angles in degrees, in <tt>[-180, 180)</tt>.
+ */
+template <int Dimension = 1, int MaxDimension = Dimension>
+using Degrees180 = QDegrees180<dimensionless, Dimension, MaxDimension>;
+
+/** \ingroup Spaces_Module
+ * \brief \a Dimension dimensionless angles in degrees, in <tt>[0, 360)</tt>, such as a compass heading.
+ */
+template <int Dimension = 1, int MaxDimension = Dimension>
+using Degrees360 = QDegrees360<dimensionless, Dimension, MaxDimension>;
 
 }  // namespace Eigen
 
