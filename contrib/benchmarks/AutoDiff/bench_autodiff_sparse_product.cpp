@@ -3,7 +3,7 @@
 
 #include <benchmark/benchmark.h>
 #include <Eigen/SparseCore>
-#include <contrib/Eigen/AutoDiff>
+#include <Eigen/AutoDiff>
 
 template <int Order, bool SparseOnLeft>
 static void BM_AutoDiffSparseProduct(benchmark::State& state) {

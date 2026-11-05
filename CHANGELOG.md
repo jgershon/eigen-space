@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 New features:
+- The Spaces layer of EmrysFilter in Core: the `Space` concept, `Linear`, `Periodic` with the named angles, `Composite`, `Repeated`, tag paths with `idx()`, `diffIdx()`, and `blockRows()`, and the free `plus()`, `minus()`, `normalizeValues()`, and `normalizeDifferences()` (`design/decisions.md` [spaces-are-shape], [continuous-spaces-only])
+- `Eigen/Spaces`, the covariance reset: `hasIdentityReset`, `resetJacobian()`, and `resetCovariance()`, with the reset Jacobian of a space written from scratch differentiated by `AutoDiffScalar` ([autodiff-supported])
+- `UnitQuaternion`, an attitude as a space, in Geometry ([unit-quaternion])
+- AutoDiff is a supported module, `Eigen/AutoDiff`; `contrib/Eigen/AutoDiff` and `unsupported/Eigen/AutoDiff` forward to it ([autodiff-supported])
+- `EIGEN_NO_UNIQUE_ADDRESS`, the `[[no_unique_address]]` attribute in the spelling each compiler honors
 - `AutoDiffScalar` overloads of `atan`, `log1p`, `expm1`, `log2`, `log10`, `cbrt`, `asinh`, `acosh` and `atanh` [#234, !3448]
 - ComplexQZ implementation [!1962]
 - Generic clang vector extension backend [!2051]

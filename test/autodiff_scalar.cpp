@@ -14,7 +14,7 @@
 #define small char  // Windows rpcndr.h defines this before users include AutoDiff.
 #define EIGEN_TEST_DEFINED_SMALL
 #endif
-#include <contrib/Eigen/AutoDiff>
+#include <Eigen/AutoDiff>
 #ifdef EIGEN_TEST_DEFINED_SMALL
 #undef small
 #undef EIGEN_TEST_DEFINED_SMALL

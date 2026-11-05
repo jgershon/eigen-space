@@ -1063,6 +1063,16 @@
 // Defined here for backward compatibility with downstream code that still references it.
 #define EIGEN_EMPTY_STRUCT_CTOR(X)
 
+// Lets an empty member, such as a fixed-size space, take no storage. MSVC honors only its own
+// spelling of the attribute, for ABI compatibility.
+#if defined(__has_cpp_attribute) && __has_cpp_attribute(msvc::no_unique_address)
+#define EIGEN_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
+#elif defined(__has_cpp_attribute) && __has_cpp_attribute(no_unique_address)
+#define EIGEN_NO_UNIQUE_ADDRESS [[no_unique_address]]
+#else
+#define EIGEN_NO_UNIQUE_ADDRESS
+#endif
+
 #if EIGEN_COMP_GNUC
 #define EIGEN_UNUSED __attribute__((unused))
 #else

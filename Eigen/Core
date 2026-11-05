@@ -97,6 +97,11 @@
 
 // for std::move, std::forward, std::declval
 #include <utility>
+#include <concepts>
+#include <numbers>
+#include <numeric>
+#include <optional>
+#include <tuple>
 
 // for std::this_thread::yield().
 #if !defined(EIGEN_USE_BLAS) && (defined(EIGEN_HAS_OPENMP) || defined(EIGEN_GEMM_THREADPOOL))
@@ -501,6 +506,13 @@ using std::size_t;
 #endif
 
 #include "src/Core/GlobalFunctions.h"
+
+#include "src/Core/Spaces/Space.h"
+#include "src/Core/Spaces/Coordinates.h"
+#include "src/Core/Spaces/Composite.h"
+#include "src/Core/Spaces/TagPath.h"
+#include "src/Core/Spaces/Subspace.h"
+#include "src/Core/Spaces/Indexing.h"
 // IWYU pragma: end_exports
 
 #include "src/Core/util/ReenableStupidWarnings.h"

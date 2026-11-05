@@ -1,36 +1,25 @@
 # Roadmap
 
 The work in order, written for contributors; what the fork does and why is in
-[decisions.md](decisions.md). Kept as EmrysFilter's roadmap: only work not done, a step ends with
-"Done when", step numbers are never reused, and a finished step becomes a row of the Done table.
+[decisions.md](decisions.md) and [spaces-decisions.md](spaces-decisions.md). Kept as EmrysFilter's
+roadmap: only work not done, a step ends with "Done when", step numbers are never reused, and a
+finished step becomes a row of the Done table.
 
-## 1. The spaces of EmrysFilter — not started
+## 1a. EmrysFilter on the fork's spaces — not started
 
-[spaces-are-shape] (the space types only, not yet the shape parameter), [continuous-spaces-only],
-[autodiff-supported], [public-space-helpers], [bibliography-page]. The continuous Space layer of
-EmrysFilter copied into Eigen, adapted to its namespace, macros, style, and test framework, so
-that EmrysFilter can later take its spaces from here and delete its own.
+[public-space-helpers]. The follow-up to step 1 that only EmrysFilter can drive: it takes its spaces
+from the fork and deletes its own `Spaces/` directory, except Discrete.h [continuous-spaces-only].
 
-- [ ] `Eigen/src/Core/Spaces/`: Space.h (the concept, plus(), minus(), the dimension constants),
-      Coordinates.h (`Linear`, `Periodic`, the named angles), Composite.h (`Composite`,
-      `Repeated`, the part storage), TagPath.h, Subspace.h, and the index-set and row insertion
-      and erasure helpers from Indexing.h. `EMRYS_FILTER_ASSERT` becomes `eigen_assert`, the
-      no-unique-address macro becomes `EIGEN_NO_UNIQUE_ADDRESS`, `Internal` becomes `internal`.
-- [ ] `contrib/Eigen/AutoDiff` promoted to `Eigen/AutoDiff`, with the old path forwarding.
-- [ ] `Eigen/Spaces`, the umbrella that includes Core, LU, and AutoDiff: Reset.h's space part
-      (hasIdentityReset, the resetJacobian() protocol, forEachResetBlock, the free
-      resetJacobian()) and the automatic-differentiation fallback.
-- [ ] `UnitQuaternion` in `Eigen/src/Geometry/`.
-- [ ] Tests: EmrysFilter's `tests/Spaces/*.cpp` ported to `EIGEN_DECLARE_TEST` and `VERIFY`, its
-      `compile_errors.cpp` cases as one failtest each.
-- [ ] `doc/Bibliography.dox` seeded with the six keys the headers cite; the fourteen Spaces
-      decisions of EmrysFilter brought into decisions.md.
-- [ ] Which helpers EmrysFilter calls from outside its Spaces layer are public, each named for
-      what it is.
+- [ ] Each helper EmrysFilter calls from outside its Spaces layer is public under a name for what it
+      is, or EmrysFilter stops calling it: the single-row-aware plain matrix alias
+      (`internal::MatrixOf`), the symmetric-block readers (`internal::lowerSymmetricBlock` and its
+      kin), the resolved coordinate selection (`internal::Coordinates`), and the information-form
+      reset (`internal::resetInfoAt`).
+- [ ] EmrysFilter includes `Eigen/Spaces` and `Eigen/Geometry` in place of its `Spaces/` headers,
+      with `Emrys::Internal` spellings of the ported helpers replaced.
 
-Done when: the ported tests and failtests pass, the Doxygen build has no warning from the new
-headers, and EmrysFilter compiles against the fork with its own `Spaces/` directory deleted,
-except Discrete.h.
+Done when: EmrysFilter's tests pass against the fork with its own `Spaces/` directory reduced to
+Discrete.h, and nothing in EmrysFilter names `Eigen::internal`.
 
 ## 2. Units and duals — not started
 
@@ -86,3 +75,4 @@ EmrysFilter radar example types its state, measurement, and gain.
 | Step | What | Decisions |
 |---|---|---|
 | 0 | C++20 baseline | [cxx20-baseline], [q-names] |
+| 1 | The continuous spaces of EmrysFilter in Core, the reset in `Eigen/Spaces`, `UnitQuaternion` in Geometry, AutoDiff promoted, the bibliography page | [continuous-spaces-only], [autodiff-supported], [bibliography-page], the thirteen in spaces-decisions.md |

@@ -4,14 +4,14 @@
 // SPDX-FileCopyrightText: The Eigen Authors
 // SPDX-License-Identifier: MPL-2.0
 //
-// Forwarding header: the top-level unsupported/ directory was renamed
-// to contrib/ in Eigen 5.x. New code should use
-//   #include <contrib/Eigen/AutoDiff>
+// Forwarding header: AutoDiff is a supported module, Eigen/AutoDiff, since the
+// eigen-space fork (design/decisions.md [autodiff-supported]). New code should use
+//   #include <Eigen/AutoDiff>
 // directly. This shim preserves the legacy include path.
 
 #ifndef EIGEN_UNSUPPORTED_AUTODIFF_FORWARD_H
 #define EIGEN_UNSUPPORTED_AUTODIFF_FORWARD_H
 
-#include "../../contrib/Eigen/AutoDiff"  // IWYU pragma: export
+#include "../../Eigen/AutoDiff"  // IWYU pragma: export
 
 #endif  // EIGEN_UNSUPPORTED_AUTODIFF_FORWARD_H

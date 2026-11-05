@@ -13,7 +13,7 @@
 #include "main.h"
 
 #include <Eigen/Tensor>
-#include <contrib/Eigen/AutoDiff>
+#include <Eigen/AutoDiff>
 
 #include "AnnoyingScalar.h"
 

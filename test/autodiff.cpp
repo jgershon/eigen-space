@@ -14,7 +14,7 @@
 #include <Eigen/QR>
 #include <Eigen/SVD>
 #include <Eigen/SparseCore>
-#include <contrib/Eigen/AutoDiff>
+#include <Eigen/AutoDiff>
 #include <contrib/Eigen/Splines>
 #include "NonCommutativeScalar.h"
 

@@ -1,0 +1,42 @@
+namespace Eigen {
+
+/** \page Bibliography Bibliography
+
+The published sources the headers cite with `\ref`, one anchor per work, named by first author and year as
+EmrysFilter's bibliography names them (design/decisions.md [bibliography-page]). A comment that cites an entry says
+what the code takes from it, such as the equation numbers or the section, and where it departs. Entries are in
+alphabetical order by first author.
+
+\anchor Hertzberg2013
+C. Hertzberg, R. Wagner, U. Frese, and L. Schröder. Integrating generic sensor fusion algorithms
+with sound state representations through encapsulation of manifolds. *Information Fusion*,
+14(1):57–77, 2013. Free: [arXiv](https://arxiv.org/abs/1107.1119).
+
+\anchor Kalman1960
+R. E. Kalman. A new approach to linear filtering and prediction problems. *Journal of Basic
+Engineering*, 82(1):35–45, 1960.
+
+\anchor Markley2003
+F. L. Markley. Attitude error representations for Kalman filtering. *Journal of Guidance,
+Control, and Dynamics*, 26(2):311–317, 2003. The text checked is the NASA preprint of 2002
+(NTRS 20020060647), whose reset section says the reset leaves the covariance unchanged. Free:
+[NASA preprint](https://ntrs.nasa.gov/citations/20020060647).
+
+\anchor Mueller2017
+M. W. Mueller, M. Hehn, and R. D'Andrea. Covariance correction step for Kalman filtering with an
+attitude. *Journal of Guidance, Control, and Dynamics*, 40(9):2301–2306, 2017. The text checked
+is the authors' preprint.
+
+\anchor Sola2017
+J. Solà. Quaternion kinematics for the error-state Kalman filter. Technical report,
+arXiv:1711.02508, 2017. §6.3, the ESKF reset, eqs. (284) to (288) and (294). Free:
+[arXiv](https://arxiv.org/abs/1711.02508).
+
+\anchor Sola2018
+J. Solà, J. Deray, and D. Atchuthan. A micro Lie theory for state estimation in robotics.
+Technical report IRI-TR-18-01, arXiv:1812.01537, 2018 (version 9, 2021). Appendix B, the right
+Jacobian of SO(3), eq. (143). Free: [arXiv](https://arxiv.org/abs/1812.01537).
+
+*/
+
+}

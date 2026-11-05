@@ -4,7 +4,7 @@
 #include <Eigen/Dense>
 #include <cmath>
 #include <iostream>
-#include <contrib/Eigen/AutoDiff>
+#include <Eigen/AutoDiff>
 
 template <typename Scalar>
 Scalar f(const Scalar& x, const Scalar& y) {

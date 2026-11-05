@@ -101,11 +101,21 @@ namespace Eigen {
         \ingroup DenseMatrixManipulation_Reference */
 /**     \addtogroup Householder_Module
         \ingroup DenseMatrixManipulation_Reference */
+/**     \addtogroup Spaces_Module
+        \ingroup DenseMatrixManipulation_Reference */
+/**     \addtogroup AutoDiff_Module
+        \ingroup DenseMatrixManipulation_Reference */
 
 /** \addtogroup CoeffwiseMathFunctions
     \ingroup DenseMatrixManipulation_chapter */
 
 /** \addtogroup QuickRefPage
+    \ingroup DenseMatrixManipulation_chapter */
+
+/** \addtogroup AutoDiffExamples
+    \ingroup DenseMatrixManipulation_chapter */
+
+/** \addtogroup Bibliography
     \ingroup DenseMatrixManipulation_chapter */
 
 

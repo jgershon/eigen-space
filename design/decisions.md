@@ -3,8 +3,9 @@
 The settled decisions behind this fork of Eigen, which builds the Space concept of EmrysFilter into
 Eigen's own types so that a vector or matrix carries a unit per block: for each, the rule, the
 reason, the alternatives worth not proposing again, and where the code is. It is written for
-contributors. The order of the work is in [roadmap.md](roadmap.md). The fork keeps Eigen's own
-guides for everything this file does not override: `AGENTS.md` and `.agents/`.
+contributors. The order of the work is in [roadmap.md](roadmap.md), and the decisions behind the spaces
+themselves, brought over from EmrysFilter with the code, are in [spaces-decisions.md](spaces-decisions.md). The fork
+keeps Eigen's own guides for everything these files do not override: `AGENTS.md` and `.agents/`.
 
 How it is kept: as EmrysFilter's `docs/design/decisions.md`. A decision is named in kebab case and
 cited in brackets, `[spaces-are-shape]`, in headers, tests, and documents; it is added in the

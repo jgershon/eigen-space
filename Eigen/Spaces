@@ -1,0 +1,35 @@
+// This file is part of Eigen, a lightweight C++ template library
+// for linear algebra.
+//
+// SPDX-FileCopyrightText: The Eigen Authors
+// SPDX-License-Identifier: MPL-2.0
+
+#ifndef EIGEN_SPACES_MODULE_H
+#define EIGEN_SPACES_MODULE_H
+
+#include "Core"
+#include "LU"
+#include "AutoDiff"
+
+#include "src/Core/util/DisableStupidWarnings.h"
+
+/** \addtogroup Spaces_Module
+ *
+ * The spaces themselves (Linear, Periodic, Composite, Repeated, the tag paths, and the Space concept) are part of
+ * \ref Core_Module "Core", since a matrix's shape is a pair of spaces. This module adds what depends on more than
+ * Core: the covariance reset, which carries a covariance to the tangent space at a moved mean and differentiates a
+ * space's own plus() and minus() with \ref AutoDiff_Module "AutoDiff" where the space gives no closed form
+ * (design/decisions.md [autodiff-supported]).
+ *
+ * \code
+ * #include <Eigen/Spaces>
+ * \endcode
+ */
+
+// IWYU pragma: begin_exports
+#include "src/Spaces/Reset.h"
+// IWYU pragma: end_exports
+
+#include "src/Core/util/ReenableStupidWarnings.h"
+
+#endif  // EIGEN_SPACES_MODULE_H

@@ -4,7 +4,7 @@
 #include <Eigen/Dense>
 #include <cmath>
 #include <iostream>
-#include <contrib/Eigen/AutoDiff>
+#include <Eigen/AutoDiff>
 
 struct ExampleFunctor {
   typedef Eigen::Vector2d InputType;

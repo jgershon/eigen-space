@@ -11,7 +11,6 @@ Click on the \e Modules tab at the top of this page to get a list of all contrib
 
 Don't miss the <a href="../index.html">official Eigen documentation</a>.
 
- \subpage AutoDiffExamples "AutoDiff examples"
 
  \subpage StructuredMatricesExamples "StructuredMatrices examples"
 

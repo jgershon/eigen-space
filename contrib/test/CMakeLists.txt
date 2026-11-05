@@ -41,8 +41,6 @@ ei_add_test(NumericalDiff)
 ei_add_test(stencil)
 ei_add_test(ridders)
 ei_add_test(structured_dpr1)
-ei_add_test(autodiff_scalar)
-ei_add_test(autodiff)
 
 ei_add_test(BVH)
 

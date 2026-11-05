@@ -6,7 +6,7 @@
 #define EIGEN_USE_THREADS
 
 #include <benchmark/benchmark.h>
-#include <contrib/Eigen/AutoDiff>
+#include <Eigen/AutoDiff>
 #include <contrib/Eigen/Tensor>
 #include <Eigen/ThreadPool>
 

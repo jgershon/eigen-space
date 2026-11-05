@@ -5,7 +5,7 @@
 
 #include <benchmark/benchmark.h>
 #include <Eigen/Core>
-#include <contrib/Eigen/AutoDiff>
+#include <Eigen/AutoDiff>
 #include <contrib/Eigen/NumericalDiff>
 
 using namespace Eigen;
