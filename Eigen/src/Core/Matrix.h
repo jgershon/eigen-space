@@ -212,6 +212,9 @@ class QMatrix : public PlainObjectBase<QMatrix<RowSpace_, ColSpace_, Scalar_, Op
   using ColSpace = ColSpace_;
 
   EIGEN_DENSE_PUBLIC_INTERFACE(QMatrix)
+  static_assert(
+      internal::space_is_bound<RowSpace_>::value && internal::space_is_bound<ColSpace_>::value,
+      "every leaf of a matrix's spaces needs a unit; bind one with In (design/decisions.md [leaf-quantities])");
 
   using PlainObject = typename Base::PlainObject;
 

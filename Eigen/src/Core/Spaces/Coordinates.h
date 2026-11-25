@@ -23,7 +23,9 @@ struct PeriodicInterval {
 };
 
 /** \ingroup Spaces_Module
- * \brief \a Dimension_ coordinates in the unit \a U that wrap with a common period, such as angles or DFT bins.
+ * \brief \a Dimension_ coordinates measuring \a U that wrap with a common period, such as angles or DFT bins. \a U
+ * is an mp-units unit or reference, never a bare quantity spec, since the interval is read in its unit
+ * (design/decisions.md [leaf-quantities]).
  *
  * Values are kept in <tt>[lower(), upper())</tt> and differences in
  * <tt>[-period()/2, period()/2)</tt>, both in the unit \a U: the difference space is the QPeriodic on that interval,
@@ -31,13 +33,14 @@ struct PeriodicInterval {
  * QPeriodic is an empty type: <tt>struct Bin : QPeriodic<dimensionless, {.lower = 0.0, .upper = 256.0}> {};</tt>.
  * The interval has no default (design/decisions.md [coordinate-parameters]). The common angles are named
  * QRadiansPi, QRadians2Pi, QDegrees180, and QDegrees360, and the dimensionless leaves are spelled Periodic and
- * RadiansPi, Radians2Pi, Degrees180, Degrees360 [mandatory-units].
+ * RadiansPi, Radians2Pi, Degrees180, Degrees360 [leaf-quantities].
  *
  * A Gaussian on a periodic coordinate is a Gaussian in its tangent space, valid while its standard
  * deviation is small against the period; a spread on the order of the period is better held by
  * particles, a grid, or a mixture [tangent-gaussians].
  */
-template <Unit auto U, PeriodicInterval Interval, int Dimension_ = 1, int MaxDimension_ = Dimension_>
+template <internal::QuantityArgument auto U, PeriodicInterval Interval, int Dimension_ = 1,
+          int MaxDimension_ = Dimension_>
 class QPeriodic : public internal::LeafExtent<Dimension_, MaxDimension_> {
  public:
   static_assert(Dimension_ == Dynamic || Dimension_ >= 1);
@@ -46,6 +49,7 @@ class QPeriodic : public internal::LeafExtent<Dimension_, MaxDimension_> {
   static_assert(Interval.upper == Interval.upper, "the upper end must be given");
   static_assert(Interval.lower < Interval.upper, "the upper end must be above the lower");
   static_assert(Interval.upper - Interval.lower < std::numeric_limits<double>::infinity(), "the period must be finite");
+  static_assert(internal::isBound(U), "a periodic leaf reads its interval in its unit, so it must be given one");
 
   static constexpr int FixedValueDimension = Dimension_ == Dynamic ? 0 : Dimension_;  ///< the fixed coordinates
   static constexpr int ValueDimensionStep = Dimension_ == Dynamic ? 1 : 0;  ///< one coordinate per element if resizable
@@ -61,7 +65,7 @@ class QPeriodic : public internal::LeafExtent<Dimension_, MaxDimension_> {
   }
 
   /** \returns the unit of every coordinate, \a U, in which the interval is read */
-  static constexpr auto unit() { return U; }
+  static constexpr auto quantity() { return U; }
 
   /** \returns the lower end of the interval of values */
   static consteval double lower() { return Interval.lower; }
@@ -104,27 +108,27 @@ using Periodic = QPeriodic<dimensionless, Interval, Dimension, MaxDimension>;
 /** \ingroup Spaces_Module
  * \brief \a Dimension angles in <tt>[-π, π)</tt>, in the unit \a U (radians, in the system the unit comes from).
  */
-template <Unit auto U, int Dimension = 1, int MaxDimension = Dimension>
+template <internal::QuantityArgument auto U, int Dimension = 1, int MaxDimension = Dimension>
 using QRadiansPi =
     QPeriodic<U, PeriodicInterval{.lower = -std::numbers::pi, .upper = std::numbers::pi}, Dimension, MaxDimension>;
 
 /** \ingroup Spaces_Module
  * \brief \a Dimension angles in <tt>[0, 2π)</tt>, in the unit \a U.
  */
-template <Unit auto U, int Dimension = 1, int MaxDimension = Dimension>
+template <internal::QuantityArgument auto U, int Dimension = 1, int MaxDimension = Dimension>
 using QRadians2Pi =
     QPeriodic<U, PeriodicInterval{.lower = 0.0, .upper = 2 * std::numbers::pi}, Dimension, MaxDimension>;
 
 /** \ingroup Spaces_Module
  * \brief \a Dimension angles in <tt>[-180, 180)</tt>, in the unit \a U (degrees, in the system the unit comes from).
  */
-template <Unit auto U, int Dimension = 1, int MaxDimension = Dimension>
+template <internal::QuantityArgument auto U, int Dimension = 1, int MaxDimension = Dimension>
 using QDegrees180 = QPeriodic<U, PeriodicInterval{.lower = -180.0, .upper = 180.0}, Dimension, MaxDimension>;
 
 /** \ingroup Spaces_Module
  * \brief \a Dimension angles in <tt>[0, 360)</tt>, in the unit \a U, such as a compass heading.
  */
-template <Unit auto U, int Dimension = 1, int MaxDimension = Dimension>
+template <internal::QuantityArgument auto U, int Dimension = 1, int MaxDimension = Dimension>
 using QDegrees360 = QPeriodic<U, PeriodicInterval{.lower = 0.0, .upper = 360.0}, Dimension, MaxDimension>;
 
 /** \ingroup Spaces_Module

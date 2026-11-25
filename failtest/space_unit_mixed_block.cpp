@@ -4,25 +4,21 @@
 // SPDX-FileCopyrightText: The Eigen Authors
 // SPDX-License-Identifier: MPL-2.0
 
-#include "../Eigen/Core"
+#include "../Eigen/Units"
+
+#include <mp-units/systems/isq.h>
+#include <mp-units/systems/si.h>
 
 using namespace Eigen;
+namespace si = mp_units::si;
+namespace isq = mp_units::isq;
 
-// A unit of exponents, enough to give two blocks different units.
-struct TestUnit {
-  int length;
-  friend constexpr TestUnit operator*(TestUnit a, TestUnit b) { return {a.length + b.length}; }
-  friend constexpr TestUnit operator/(TestUnit a, TestUnit b) { return {a.length - b.length}; }
-  friend constexpr bool operator==(TestUnit, TestUnit) = default;
-};
-constexpr TestUnit metre{1};
-
-struct Position : QLinear<metre, 3> {};
+struct Position : QLinear<isq::length, 3> {};
 struct Count : Linear<2> {};
 struct Mixed : Composite<Position, Count> {};
-using State = Composite<Mixed>;
+using State = In<Composite<Mixed>, si::metre>;
 
-// A block whose coordinates have different units has no unit of its own (Dual.h).
+// A block whose coordinates measure different quantities has no unit of its own (Dual.h).
 #ifdef EIGEN_SHOULD_FAIL_TO_BUILD
 constexpr auto unit = unitAt<State, Mixed>();
 #else

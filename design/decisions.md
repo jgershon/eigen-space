@@ -20,8 +20,12 @@ records a choice. **Rule**, **Why**, **Rejected**, and **Where**; mechanism belo
 | [spaces-are-shape](#spaces-are-shape) | A space replaces Rows, Cols, MaxRows, and MaxCols; the integers are derived |
 | [q-names](#q-names) | `QMatrix`, `QArray`, `QVector`; `Matrix` and its family are aliases on `Linear` spaces |
 | [space-first](#space-first) | Spaces first, then the scalar, which is the representation type and defaults to `double` |
-| [mandatory-units](#mandatory-units) | Every leaf space has a unit; the plain spaces are dimensionless |
+| [mp-units-dependency](#mp-units-dependency) | The typed spaces are built on mp-units; plain Eigen does not include it |
+| [leaf-quantities](#leaf-quantities) | A space fixes what its coordinates measure; a unit is bound to it, and a tag names it without one |
 | [dual-spaces](#dual-spaces) | `Dual<S>` types the column side of a linear map; Hart's rules type every operation |
+| [heterogeneous-results](#heterogeneous-results) | Compatible operands combine as mp-units quantities do |
+| [additive-groups](#additive-groups) | Coordinate arithmetic is a space's own only in a group under addition |
+| [complex-scalars](#complex-scalars) | Units do not depend on the scalar being complex |
 | [typed-blocks](#typed-blocks) | A tag addresses a block; a block by offset needs a uniform axis |
 | [decomposition-boundaries](#decomposition-boundaries) | Kernels compute on the scalar buffer; decompositions type their factors at the API |
 | [continuous-spaces-only](#continuous-spaces-only) | Discrete spaces stay in EmrysFilter |
@@ -136,38 +140,75 @@ each leaf would let the two axes disagree.
 
 **Where.** `Eigen/src/Core/util/ForwardDeclarations.h`.
 
-## mandatory-units
+## mp-units-dependency
 
-*Every leaf space has a unit; the plain spaces are dimensionless.*
+*The typed spaces are built on mp-units; plain Eigen does not include it.*
 
-**Rule.** A leaf space carries one unit for all its coordinates, as its first template argument:
-`QLinear<U, N, Max>` and `QPeriodic<U, Interval, N, Max>`, with the named angles `QRadiansPi<U, N,
-Max>` and the other three. The plain names are the dimensionless aliases, `Linear<N, Max>` for
-`QLinear<dimensionless, N, Max>` and likewise `Periodic`, `RadiansPi`, `Radians2Pi`, `Degrees180`,
-and `Degrees360`, so every spelling written before the unit existed keeps its type, and a space
-written from scratch declares no unit and is dimensionless. The unit is first so that the maximum
-dimension need not be written to give it; the dimension is second; the maximum stays last. A unit is
-any structural value satisfying Eigen's `Unit` concept: closed under product and quotient, with
-`constexpr` equality, and not a number; `Eigen::dimensionless` is the identity, which a foreign unit
-absorbs on either side of a product or quotient and equals exactly when it is the dimensionless unit
-of its own system. Eigen defines the concept and `dimensionless` and nothing else; mp-units' unit
-objects satisfy it as they are. `unitAt<S, Path>()` reads the unit of the block a path names, and
-`unitOf<S>()` a space's where its blocks agree. `QPeriodic`'s interval is read in its unit, so
-`QDegrees360<si::degree>` and `QRadians2Pi<si::radian>` differ in unit and not only in period.
+**Rule.** Quantity specs, units, references, their conversion factors, and their common units are
+mp-units' own, used as they are; Eigen defines no unit system and no unit concept. `Eigen/Units`
+includes mp-units and makes spaces with units usable. `Eigen/Core` keeps `dimensionless` and the
+plain spaces and compiles without mp-units; it reaches mp-units only through
+`internal::units_backend`, which Core declares and `Eigen/Units` defines, so a space with units used
+without `Eigen/Units` fails to compile instead of meaning something else in that translation unit.
+This reverses the decision of 2026-11-04 (2026-11-25).
 
-**Why.** One unit per leaf, not a tuple per space: a leaf is already uniform by construction (one
-normalize rule, one period), a mixed-unit state is already a Composite of tagged leaves, and a
-resizable or repeated block takes one unit where a tuple the length of the space could not be
-written. One rule in every check, product, and dual, instead of a unit case and a no-unit case. The
-Q prefix follows [q-names]: no Q, no units, for leaves as for matrices.
+**Why.** mp-units is proposed for the standard library (P3045), and the best outcome of this fork
+is to show what Eigen 6 looks like on it. Conversion needs it: a common unit and a conversion
+factor are read from mp-units' magnitudes, which a concept over `*`, `/`, and `==` cannot reach, so
+metres and feet could only be rejected. Using its quantity specs gives the spaces kinds
+(`isq::height` against `isq::width`) and the rules for which converts into which, instead of a
+second design of them.
 
-**Rejected.** An optional unit. mp-units as a dependency of Core. A tuple of units the length of the
-space. The unit as a trailing parameter, `Linear<3, 3, si::metre>`, which made the rarest parameter
-mandatory; as the second, `Linear<3, si::metre>`, which broke `Linear<Dynamic, 8>`. Trailing letters
-for the dimensionless alias on the model of `MatrixXd`, `LinearD`: those letters name concrete sizes
-and scalars, and `D` already reads as dynamic or double. A `Quantity<Unit, Space>` adaptor.
+**Rejected.** Eigen's own `Unit` concept satisfied by any library (the decision reversed): no
+conversion, and a second vocabulary beside the one the standard may adopt. `Eigen/Core` including
+mp-units: every plain translation unit would pay for it. A customization point open to other unit
+libraries: nothing needs it, and it would freeze an interface before the standard settles.
 
-**Where.** `Eigen/src/Core/Spaces/Unit.h`, `Linear.h`, `Coordinates.h`, `Dual.h`; `test/spaces_units.cpp`.
+**Where.** `Eigen/Units`, `Eigen/src/Units/`; `Eigen/src/Core/Spaces/Unit.h` for `dimensionless`
+and the declaration of `units_backend`; `cmake/EigenMPUnits.cmake`.
+
+## leaf-quantities
+
+*A space fixes what its coordinates measure; a unit is bound to it, and a tag names it without one.*
+
+**Rule.** A leaf space's first template argument is what its coordinates measure: an mp-units
+quantity spec, `QLinear<isq::displacement, 3>`, which fixes the dimension and the kind; a unit,
+`QLinear<si::metre, 3>`, whose kind is the unit's as in `quantity<si::metre>`; or a reference,
+`QLinear<isq::height[si::metre], 3>`. The plain names are the dimensionless aliases, `Linear<N,
+Max>` for `QLinear<dimensionless, N, Max>` and likewise `Periodic` and the named angles, so every
+spelling written before units keeps its type. A leaf with a unit is bound, a space whose every leaf
+is bound is bound, and a `QMatrix`'s spaces are bound. A tag names a space without units, `struct
+Position : QLinear<isq::displacement, 3> {};`, and a unit is bound to it apart, by In: by dimension,
+`In<Position, si::metre>` and `In<State, si::metre, si::metre / si::second>`, each unit binding the
+leaves without one whose quantity it measures and a leaf that two would fit not compiling; or by tag
+at any depth, `In<State, bind<Position>(si::metre), bind<Velocity>(si::foot / si::second)>`. A
+leaf with a unit keeps it, so a periodic leaf, whose interval is read in its unit, carries one from
+its definition. A composite of bound blocks, `Composite<In<Position, si::metre>, ...>`, is bound
+too, and a tag path names a bound block by its tag. The binding is kept by leaf position, so it
+survives `difference()` and `Dual`, which keep the order of the leaves and not always their tags.
+`QPeriodic`'s interval is read in its unit, so `QDegrees360<si::degree>` and
+`QRadians2Pi<si::radian>` differ in unit and not only in period. `unitAt<S, Path>()` and
+`unitOf<S>()` read units.
+
+**Why.** A tag is to a space what `isq::height` is to `isq::height[m]`: `x(Position{})` names the
+position block in metres or in feet, converting a state keeps its tags, and a model written for
+`Position` and `Velocity` works in any unit. One unit per leaf, not a tuple per space: a leaf is
+uniform by construction, a mixed-unit state is a Composite of tagged leaves, and a resizable or
+repeated block takes one unit where a tuple the length of the space could not be written.
+
+**Rejected.** Tags that fix a unit, `struct Position : QLinear<si::metre, 3> {};`, the form of
+2026-11-04: converting a state would change its tags. A unit without a quantity spec as the only
+form: no kinds. Binding by position as the spelling, which goes wrong without failing when the
+blocks are reordered; the same spelling binds by dimension instead. `In<State, In<Position,
+si::metre>, ...>`, the first spelling of a binding by tag: a unit is a value and a tag a type, which
+one template cannot take in the same place. Tags as values, so that
+`position[si::metre]` reads as in mp-units: a space with run-time sizes is not a structural type.
+An optional unit, a tuple of units the length of the space, the unit as a trailing parameter, and a
+`Quantity<Unit, Space>` adaptor, as before.
+
+**Where.** `Eigen/src/Core/Spaces/Unit.h`, `Linear.h`, `Coordinates.h`, `Bound.h`, `Dual.h`;
+`TagPath.h` for `TagOf`; `test/spaces_units.cpp`, `test/units.cpp`; `failtest/space_bind_*.cpp`,
+`failtest/space_matrix_unbound.cpp`.
 
 ## dual-spaces
 
@@ -181,17 +222,15 @@ or not, is its own dual, so a plain matrix's spaces meet the product rule with n
 linear map from X to Z is `QMatrix<Z, Dual<X>>`, a covariance of x is `QMatrix<X, X>`, and an
 information matrix is `QMatrix<Dual<X>, Dual<X>>`. The operations:
 
-- sum, difference, and cwise operations: equal spaces, where `Linear<Dynamic>` is compatible with
-  `Linear<n>` of the same unit and keeps today's run-time size check. Equal means measured alike
-  coordinate by coordinate, not the same type: tags, nesting, and periodicity do not enter, so
-  `Composite<Position, Offset>` in metres equals `QLinear<metre, 5>`. A cwise product or quotient
-  is typed only against a dimensionless operand, as a scalar is;
-- assignment, construction, `+=`, and `-=`: the destination's spaces equal the source's; `*=` and
-  `/=` take a dimensionless factor. `Zero()`, `Constant()`, and `Identity()` are in the spaces of
-  the type they are called on;
-- product: `C_lhs` is `Dual<R_rhs>`, result `(R_lhs, C_rhs)`; the inner-dimension static assert is
-  the dimensionless case;
-- transpose swaps; inverse is `(Dual<C>, Dual<R>)`; a solve of `A x = b` puts x in `Dual<C>`;
+- sum, difference, and cwise operations: spaces of one structure whose coordinates measure
+  compatible quantities [heterogeneous-results], on a group under addition [additive-groups]. A
+  cwise product or quotient is typed only against a dimensionless operand, as a scalar is;
+- assignment, construction, `+=`, and `-=`: the source converts into the destination's spaces as
+  mp-units converts a quantity [heterogeneous-results]; `*=` and `/=` take a dimensionless factor.
+  `Zero()`, `Constant()`, and `Identity()` are in the spaces of the type they are called on;
+- product: `C_lhs` is `Dual<R_rhs>` up to one common factor c, result `(R_lhs c, C_rhs)`
+  [heterogeneous-results]; the inner-dimension static assert is the dimensionless case;
+- transpose and adjoint swap; inverse is `(Dual<C>, Dual<R>)`; a solve of `A x = b` puts x in `Dual<C>`;
 - a reduction along an axis, and `colwise()` or `rowwise()`, require every coordinate of that axis
   to have one unit; `norm()` and `dot()` likewise on their vector.
 
@@ -215,6 +254,79 @@ it drops the units of a typed operand it wraps.
 `CwiseBinaryOp.h`, `Product.h`, and `AssignEvaluator.h`, with the spaces of `Transpose`, `Product`,
 `CwiseBinaryOp`, and `CwiseNullaryOp` (step 3); `failtest/space_rule_*.cpp`; and `Inverse.h`,
 `Solve.h`, `Redux.h`, `VectorwiseOp.h`, `Dot.h`, and the blocks and maps (step 5).
+
+## heterogeneous-results
+
+*Compatible operands combine as mp-units quantities do: common units, common kinds, tags kept only when shared.*
+
+**Rule.** Two spaces are compatible where they have one structure and, coordinate by coordinate,
+quantities that mp-units would add: quantity specs with a common spec, so units of one dimension. A
+sum or difference is in the common space: at each coordinate the common unit (`get_common_unit`)
+and the common spec (`get_common_quantity_spec`), with each operand converted into it, which does
+not depend on the order of the operands. Its tags are the operands' where both have the same tags,
+rebound to the common units, and otherwise the untagged leaves of the common quantities. Assignment
+and construction convert the source into the destination's units where mp-units converts a
+quantity implicitly (an implicitly convertible spec, and a floating-point `Scalar` or an integral
+factor); otherwise `x.in<Space>()`, or `m.in<RowSpace, ColSpace>()`, converts explicitly. A
+product's inner coordinates, `u_C_lhs(k) u_R_rhs(k)`, must share one dimension; where they differ in
+unit the operands are converted to their common unit c, and the result is `(R_lhs c, C_rhs)`: each
+unit of `R_lhs` times c. A c with a dimension changes the leaves' specs, which drops their tags, so
+a plain `Matrix3d` times a position in metres is `QLinear<si::metre, 3>`; a c of a unit ratio, such
+as m/ft, keeps them. Where the units already agree no conversion is generated.
+
+**Why.** It is what mp-units does with `1 * m + 1 * ft` and `quantity<si::metre> q = 3 * ft`, so
+the two read alike; an order-independent result is what makes `a + b` and `b + a` one type. A tag
+held by only one operand would be a claim the other did not make.
+
+**Rejected.** The left operand's spaces, Eigen's rule for sizes: `a + b` and `b + a` of different
+types. Rejecting different units: mp-units adds them. Converting into the left operand's unit. The
+nearest common base of two tags, which mp-units' hierarchy of specs would suggest: C++20 cannot list
+a type's bases, so it would hold only for tags that name a parent; recorded for later.
+
+**Where.** `Eigen/src/Core/Spaces/Rules.h`, `Eigen/src/Units/Rules.h`, `Conversion.h`;
+`failtest/space_rule_*.cpp`, `failtest/units_*.cpp`; `test/units.cpp`.
+
+## additive-groups
+
+*Coordinate arithmetic is a space's own only in a group under addition.*
+
+**Rule.** `+`, `-`, and the coefficient-wise operations act on coordinates, which is the space's
+group product only where that product is addition: `Linear`, `Periodic` (exactly, modulo its
+period, and unwrapped until `normalize()`), and a `Composite` or `Repeated` of such, as
+EmrysFilter's `groups-prototype` classifies them. On any other space, `UnitQuaternion` or a space
+with its own `plus()`, they do not compile, and `compose()`, `plus()`, and `minus()` are the
+operations; a product's inner spaces are held to the same rule. `LieGroup`, `compose()`,
+`inverse()`, `identity()`, `exp()`, and `log()` come from that branch with the classification.
+
+**Why.** A difference of two headings by `-` is right modulo the period; of two quaternions it is
+not a rotation. Requiring a linear space instead would reject a covariance over a state with a
+heading, whose difference space is a `Periodic` on `[-p/2, p/2)`.
+
+**Rejected.** Linear spaces only, for that reason. Treating every matrix as a tensor, so that the
+check never applies: a vector of quaternions would add. Telling values from differences in the
+type, as mp-units' `quantity_point` does: deferred.
+
+**Where.** `Eigen/src/Core/Spaces/Group.h`, `Rules.h`; `Eigen/src/Geometry/UnitQuaternion.h`;
+`failtest/space_rule_*.cpp`.
+
+## complex-scalars
+
+*Units do not depend on the scalar being complex.*
+
+**Rule.** Entry (i, j) has the unit u_R(i) u_C(j) whether `Scalar` is real or complex, and
+conversion factors are real. A leaf whose first argument names a quantity spec holds a `Scalar` of
+the spec's character, as mp-units' `RepresentationOf` checks; a leaf given only a unit takes any, as
+mp-units' `kind_of` references do. `adjoint()` swaps the spaces as `transpose()` does; `real()`,
+`imag()`, and `abs()` keep units; `norm()` is |x|^2 in Eigen and squares them. A spec of vector
+character on a leaf of N coordinates means the leaf holds that vector's components; recorded, not
+checked.
+
+**Why.** mp-units makes complex a property of the representation and the spec, never of the unit;
+the same split keeps one rule for real and complex matrices.
+
+**Rejected.** A complex unit, or a separate rule for complex matrices.
+
+**Where.** `Eigen/src/Units/Rules.h`; `test/units.cpp`.
 
 ## typed-blocks
 
@@ -290,7 +402,7 @@ the tag-path resolution it shares with `Composite`.
 reset of a space's covariance to the tangent space at a moved mean (EmrysFilter's `Reset.h`) lives
 in `Eigen/Spaces`, an umbrella that includes Core, LU, and AutoDiff: the identity and closed-form
 paths, and the fallback that differentiates a space's plus() and minus() with `AutoDiffScalar`.
-The leaves, `Composite`, the tag paths, `Dual`, and the unit concept live under
+The leaves, `Composite`, the tag paths, `Dual`, `In`, and `dimensionless` live under
 `Eigen/src/Core/Spaces/`, where `Matrix` needs them.
 
 **Why.** Nothing under `Eigen/` may include contrib, and the fallback is what makes a space written

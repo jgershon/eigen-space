@@ -481,6 +481,11 @@ struct spaces_of<QArray<RowSpace_, ColSpace_, Scalar_, Options_>> {
  * fit the operation. Defined in Spaces/Rules.h, after the spaces, and the spaces_of of Product, CwiseBinaryOp,
  * Transpose, and CwiseNullaryOp with them.
  */
+template <typename Space>
+struct space_is_bound;
+// The plain matrices are instantiated by Core's own headers before the spaces are defined.
+template <int N, int M>
+struct space_is_bound<QLinear<dimensionless, N, M>> : std::true_type {};
 template <typename Lhs, typename Rhs>
 struct product_spaces;
 template <typename BinaryOp, typename Lhs, typename Rhs>

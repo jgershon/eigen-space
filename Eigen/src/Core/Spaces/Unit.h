@@ -13,122 +13,125 @@
 namespace Eigen {
 
 /** \ingroup Spaces_Module
- * \brief The unit of a coordinate that has none: the identity of every unit algebra.
+ * \brief What the coordinates of a plain space measure: nothing, in no unit.
  *
- * Eigen defines no unit system of its own (design/decisions.md [mandatory-units]). A leaf space carries a unit from
- * any library whose units are structural values closed under product and quotient, such as mp-units, and this is the
- * one unit Eigen supplies: the default of every leaf, and what a product of units that cancel compares equal to. A
- * foreign unit absorbs it on either side of a product or quotient, and compares equal to it when the unit is the
- * dimensionless one of its own system.
+ * The first template argument of every leaf space is what its coordinates measure, an mp-units quantity spec, unit,
+ * or reference (design/decisions.md [leaf-quantities]); the plain spaces, Linear and its kin, take this one, which
+ * needs no units library. Eigen/Units maps it onto mp-units' dimensionless quantity in the unit one
+ * [mp-units-dependency].
  */
 struct Dimensionless {
-  friend constexpr Dimensionless operator*(Dimensionless, Dimensionless) { return {}; }
-  friend constexpr Dimensionless operator/(Dimensionless, Dimensionless) { return {}; }
   friend constexpr bool operator==(Dimensionless, Dimensionless) { return true; }
 };
 
 /** \ingroup Spaces_Module
- * The dimensionless unit, the default unit of a leaf space.
+ * The quantity of the plain spaces: dimensionless, in the unit one.
  */
 inline constexpr Dimensionless dimensionless{};
 
-/** \ingroup Spaces_Module
- * \brief A type whose values are units: closed under product and quotient, with constant-expression equality, and not
- * a number.
- *
- * Linear and Periodic take a value of such a type as their first template argument, so it must also be structural.
- * mp-units' unit objects satisfy it; so does Dimensionless. Arithmetic types are excluded, so that
- * <tt>QLinear<3></tt> is an error rather than a leaf whose unit is the integer three.
- */
-template <typename U>
-concept Unit = !std::is_arithmetic_v<std::remove_cvref_t<U>> && requires(const U& a, const U& b) {
-  a * b;
-  a / b;
-  { a == b } -> std::convertible_to<bool>;
-};
-
 namespace internal {
 
-// The operators between a foreign unit and Dimensionless below are templates, so they are candidates whenever
-// Unit<U> is evaluated for a U of the foreign system. Their constraints check the Dimensionless operand first, so
-// that Unit<U> is never re-entered while it is being evaluated, which MSVC reports as a constraint satisfied as
-// false; the Dimensionless operand is a deduced parameter for the same reason.
-template <typename D, typename U>
-concept ForeignUnitAndDimensionless =
-    std::same_as<D, Dimensionless> && !std::same_as<std::remove_cvref_t<U>, Dimensionless> && Unit<U>;
-
-}  // namespace internal
-
-/** A foreign unit absorbs the dimensionless unit on either side of a product or quotient. */
-template <typename D, typename U>
-  requires internal::ForeignUnitAndDimensionless<D, U>
-constexpr U operator*(const U& u, D) {
-  return u;
-}
-template <typename D, typename U>
-  requires internal::ForeignUnitAndDimensionless<D, U>
-constexpr U operator*(D, const U& u) {
-  return u;
-}
-template <typename D, typename U>
-  requires internal::ForeignUnitAndDimensionless<D, U>
-constexpr U operator/(const U& u, D) {
-  return u;
-}
-/** The inverse of a foreign unit: the dimensionless unit of its own system, <tt>u / u</tt>, divided by it. */
-template <typename D, typename U>
-  requires internal::ForeignUnitAndDimensionless<D, U>
-constexpr auto operator/(D, const U& u) {
-  return (u / u) / u;
-}
-/** A foreign unit equals the dimensionless unit when it is the dimensionless unit of its own system. */
-template <typename D, typename U>
-  requires internal::ForeignUnitAndDimensionless<D, U>
-constexpr bool operator==(const U& u, D) {
-  return u == u / u;
-}
-
-namespace internal {
-
-/** \internal Whether \a u is dimensionless: the identity of its own unit algebra. */
-template <Unit U>
-constexpr bool isDimensionless(const U& u) {
-  return u == dimensionless;
-}
-
-/** \internal Whether the units \a a and \a b are the same unit: equal where their types compare, and otherwise both
- * dimensionless, which is the one case where units of different systems can agree.
+/** \internal The units library behind every quantity other than Eigen's dimensionless: declared here and defined by
+ * Eigen/Units on mp-units (design/decisions.md [mp-units-dependency]), so that a space with units used without it
+ * does not compile. \a Q only delays the instantiation to the point of use. Its members, each static and consteval,
+ * take mp-units quantity specs, units, references, or Dimensionless:
+ *  - isBound(q), isDimensionless(q), unitOf(q);
+ *  - same(a, b): the same quantity in the same unit, so that nothing is converted;
+ *  - compatible(a, b): quantities mp-units would add, in units that may differ;
+ *  - assignable(from, to): what mp-units converts implicitly;
+ *  - common(a, b), inverse(q), product(a, b), bind(spec, unit);
+ *  - factor(from, to): the number a value in the unit of \a from is multiplied by to be in that of \a to.
  */
-template <Unit A, Unit B>
-constexpr bool unitsEqual(const A& a, const B& b) {
-  if constexpr (requires {
-                  { a == b } -> std::convertible_to<bool>;
-                }) {
-    return a == b;
+template <typename Q>
+struct units_backend;
+
+/** \internal Eigen's own dimensionless quantity. */
+template <typename Q>
+concept IsEigenDimensionless = std::same_as<std::remove_cvref_t<Q>, Dimensionless>;
+
+/** \internal What a leaf's first argument may be: anything but a number, so that <tt>QLinear<3></tt> is an error
+ * rather than a leaf measuring the integer three. Whether it is a quantity is mp-units' to say, at the point of use.
+ */
+template <typename Q>
+concept QuantityArgument = !std::is_arithmetic_v<std::remove_cvref_t<Q>>;
+
+/** \internal The backend for an operation on \a A and \a B: either one's, where the other is Eigen's dimensionless. */
+template <typename A, typename B = A>
+using units_backend_for = units_backend<std::conditional_t<IsEigenDimensionless<A>, B, A>>;
+
+/** \internal Whether \a q has a unit: Eigen's dimensionless, an mp-units unit or reference, and not a bare spec. */
+template <typename Q>
+consteval bool isBound(const Q& q) {
+  if constexpr (IsEigenDimensionless<Q>) {
+    return true;
   } else {
-    return isDimensionless(a) && isDimensionless(b);
+    return units_backend<Q>::isBound(q);
   }
 }
 
-/** \internal The inverse of \a u: what a coordinate of the dual space is measured in. */
-template <Unit U>
-constexpr auto inverseUnit(const U& u) {
-  return dimensionless / u;
+/** \internal Whether \a q is dimensionless in the unit one, so that a coordinate measuring it is a plain number. */
+template <typename Q>
+consteval bool isDimensionless(const Q& q) {
+  if constexpr (IsEigenDimensionless<Q>) {
+    return true;
+  } else {
+    return units_backend<Q>::isDimensionless(q);
+  }
 }
 
-/** \internal Whether a space type \a S declares its unit with a static unit() member, as the leaves do. */
-template <typename S>
-concept HasUnit = requires {
-  { S::unit() } -> Unit;
-};
+/** \internal Whether \a a and \a b are the same quantity in the same unit: nothing to convert between them. */
+template <typename A, typename B>
+consteval bool sameQuantity(const A& a, const B& b) {
+  if constexpr (IsEigenDimensionless<A> && IsEigenDimensionless<B>) {
+    return true;
+  } else {
+    return units_backend_for<A, B>::same(a, b);
+  }
+}
 
-/** \internal The unit of every coordinate of the single-block space \a S: its unit() if it declares one, and otherwise
- * dimensionless, which is what a space written from scratch gets.
+/** \internal Whether a value of \a a and one of \a b add, after converting where their units differ. */
+template <typename A, typename B>
+consteval bool compatibleQuantities(const A& a, const B& b) {
+  if constexpr (IsEigenDimensionless<A> && IsEigenDimensionless<B>) {
+    return true;
+  } else {
+    return units_backend_for<A, B>::compatible(a, b);
+  }
+}
+
+/** \internal Whether \a a and \a b add with nothing converted: compatible quantities in equivalent units, such as
+ * <tt>si::metre</tt> and <tt>isq::length[si::metre]</tt>. */
+template <typename A, typename B>
+consteval bool alikeQuantities(const A& a, const B& b) {
+  if constexpr (IsEigenDimensionless<A> && IsEigenDimensionless<B>) {
+    return true;
+  } else {
+    return units_backend_for<A, B>::compatible(a, b) && units_backend_for<A, B>::sameUnit(a, b);
+  }
+}
+
+/** \internal The quantity of the dual coordinate: \a q inverted. */
+template <typename Q>
+consteval auto inverseQuantity(const Q& q) {
+  if constexpr (IsEigenDimensionless<Q>) {
+    return q;
+  } else {
+    return units_backend<Q>::inverse(q);
+  }
+}
+
+/** \internal Whether a space type \a S declares what its coordinates measure with a static quantity(), as the leaves
+ * do. */
+template <typename S>
+concept HasQuantity = requires { S::quantity(); };
+
+/** \internal What every coordinate of the single-block space \a S measures: its quantity() if it declares one, and
+ * otherwise dimensionless, which is what a space written from scratch gets.
  */
 template <typename S>
-constexpr auto leafUnit() {
-  if constexpr (HasUnit<S>) {
-    return S::unit();
+consteval auto leafQuantity() {
+  if constexpr (HasQuantity<S>) {
+    return S::quantity();
   } else {
     return dimensionless;
   }

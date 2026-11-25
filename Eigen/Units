@@ -1,0 +1,37 @@
+// This file is part of Eigen, a lightweight C++ template library
+// for linear algebra.
+//
+// SPDX-FileCopyrightText: The Eigen Authors
+// SPDX-License-Identifier: MPL-2.0
+
+#ifndef EIGEN_UNITS_MODULE_H
+#define EIGEN_UNITS_MODULE_H
+
+#include "Core"
+
+#include <mp-units/framework.h>
+
+#include "src/Core/util/DisableStupidWarnings.h"
+
+/** \defgroup Units_Module Units module
+ *
+ * Spaces whose coordinates measure quantities in units, on mp-units (design/decisions.md [mp-units-dependency]). The
+ * leaves take an mp-units quantity spec, unit, or reference as their first argument, a tag names a space without
+ * units, and In binds units to it [leaf-quantities]; this module supplies the conversions, common units, and kinds
+ * behind the typed matrix rules [heterogeneous-results]. Core keeps the plain, dimensionless spaces and compiles
+ * without mp-units; a space with units needs this header.
+ *
+ * \code
+ * #include <Eigen/Units>
+ * #include <mp-units/systems/si.h>
+ *
+ * struct Position : Eigen::QLinear<mp_units::isq::displacement, 3> {};
+ * using PositionInMetres = Eigen::In<Position, mp_units::si::metre>;
+ * \endcode
+ */
+
+#include "src/Units/Backend.h"
+
+#include "src/Core/util/ReenableStupidWarnings.h"
+
+#endif  // EIGEN_UNITS_MODULE_H

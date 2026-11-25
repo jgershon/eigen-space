@@ -60,6 +60,9 @@ class QArray : public PlainObjectBase<QArray<RowSpace_, ColSpace_, Scalar_, Opti
  public:
   using Base = PlainObjectBase<QArray>;
   EIGEN_DENSE_PUBLIC_INTERFACE(QArray)
+  static_assert(
+      internal::space_is_bound<RowSpace_>::value && internal::space_is_bound<ColSpace_>::value,
+      "every leaf of an array's spaces needs a unit; bind one with In (design/decisions.md [leaf-quantities])");
 
   enum { Options = Options_ };
 

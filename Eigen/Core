@@ -515,6 +515,7 @@ using std::size_t;
 #include "src/Core/Spaces/TagPath.h"
 #include "src/Core/Spaces/Subspace.h"
 #include "src/Core/Spaces/Indexing.h"
+#include "src/Core/Spaces/Bound.h"
 #include "src/Core/Spaces/Dual.h"
 #include "src/Core/Spaces/Rules.h"
 // IWYU pragma: end_exports

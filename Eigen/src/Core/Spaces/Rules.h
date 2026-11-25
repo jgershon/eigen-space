@@ -57,9 +57,10 @@ struct PrependRun<UnitRun<U, N>, RunList<Runs...>> {
 
 template <auto U, int N, auto V, int M, typename... Rest>
 struct PrependRun<UnitRun<U, N>, RunList<UnitRun<V, M>, Rest...>> {
-  using type = std::conditional_t<N == 0, RunList<UnitRun<V, M>, Rest...>,
-                                  std::conditional_t<unitsEqual(U, V), RunList<UnitRun<U, addRunSizes(N, M)>, Rest...>,
-                                                     RunList<UnitRun<U, N>, UnitRun<V, M>, Rest...>>>;
+  using type =
+      std::conditional_t<N == 0, RunList<UnitRun<V, M>, Rest...>,
+                         std::conditional_t<alikeQuantities(U, V), RunList<UnitRun<U, addRunSizes(N, M)>, Rest...>,
+                                            RunList<UnitRun<U, N>, UnitRun<V, M>, Rest...>>>;
 };
 
 /** \internal The run list of the coordinates of \a Front followed by those of \a Back. */
@@ -85,7 +86,7 @@ struct InvertRun;
 
 template <auto U, int N>
 struct InvertRun<UnitRun<U, N>> {
-  using type = UnitRun<inverseUnit(U), N>;
+  using type = UnitRun<inverseQuantity(U), N>;
 };
 
 template <typename BlockRuns>
@@ -100,47 +101,48 @@ struct InvertRuns<RunList<Runs...>> {
   using type = RunList<typename InvertRun<Runs>::type...>;
 };
 
-template <typename S>
-auto spaceRuns();
+/** \internal The run list of the leaves \a Leaves (a std::tuple of LeafRun and RepeatedLeaves): adjacent leaves of one
+ * quantity merged, empty ones dropped, and a repeated block as one resizable run where it has one quantity.
+ */
+template <typename Leaves>
+struct RunsOfLeaves;
 
-/** \internal The run list of the space \a S. */
-template <typename S>
-using SpaceRuns = typename decltype(spaceRuns<S>())::type;
+template <typename Leaf>
+struct RunsOfLeaf;
 
-/** \internal The runs of the blocks in the tuple type \a Blocks, in order. */
-template <typename Blocks>
-struct BlockRuns;
+template <auto Q, int N>
+struct RunsOfLeaf<LeafRun<Q, N>> {
+  using type = typename PrependRun<UnitRun<Q, N>, RunList<>>::type;
+};
+
+template <typename Inner>
+struct RunsOfLeaf<RepeatedLeaves<Inner>> {
+  using InnerRuns = typename RunsOfLeaves<Inner>::type;
+  template <typename R>
+  struct Repeat {
+    using type = RunList<RepeatedRuns<R>>;
+  };
+  template <auto Q, int N>
+  struct Repeat<RunList<UnitRun<Q, N>>> {
+    using type = RunList<UnitRun<Q, Dynamic>>;
+  };
+  using type = typename Repeat<InnerRuns>::type;
+};
 
 template <>
-struct BlockRuns<std::tuple<>> {
+struct RunsOfLeaves<std::tuple<>> {
   using type = RunList<>;
 };
 
 template <typename First, typename... Rest>
-struct BlockRuns<std::tuple<First, Rest...>> {
-  using type = typename ConcatRuns<SpaceRuns<First>, typename BlockRuns<std::tuple<Rest...>>::type>::type;
+struct RunsOfLeaves<std::tuple<First, Rest...>> {
+  using type =
+      typename ConcatRuns<typename RunsOfLeaf<First>::type, typename RunsOfLeaves<std::tuple<Rest...>>::type>::type;
 };
 
-/** \internal \returns the run list of \a S, as a std::type_identity: a dual's inverted, a composite's blocks' in
- * order, a repeated block's as one resizable run where it has one unit, and a leaf's as one run of its size. */
+/** \internal The run list of the space \a S. */
 template <typename S>
-auto spaceRuns() {
-  if constexpr (IsDualSpace<S>) {
-    return std::type_identity<typename InvertRuns<SpaceRuns<DualInner<S>>>::type>{};
-  } else if constexpr (IsComposite<S>) {
-    return std::type_identity<typename BlockRuns<CompositeBlocks<S>>::type>{};
-  } else if constexpr (IsRepeated<S>) {
-    using Block = RepeatedBlock<S>;
-    if constexpr (hasUniformUnit<Block>()) {
-      return std::type_identity<RunList<UnitRun<firstUnit<Block>(), Dynamic>>>{};
-    } else {
-      return std::type_identity<RunList<RepeatedRuns<SpaceRuns<Block>>>>{};
-    }
-  } else {
-    return std::type_identity<
-        typename PrependRun<UnitRun<leafUnit<S>(), valueDimensionAtCompileTime<S>>, RunList<>>::type>{};
-  }
-}
+using SpaceRuns = typename RunsOfLeaves<typename SpaceLeaves<S>::type>::type;
 
 template <typename A, typename B>
 struct RunsMatch;
@@ -151,7 +153,7 @@ struct RunMatches : std::false_type {};
 
 template <auto U, int N, auto V, int M>
 struct RunMatches<UnitRun<U, N>, UnitRun<V, M>>
-    : std::bool_constant<unitsEqual(U, V) && (N == M || N == Dynamic || M == Dynamic)> {};
+    : std::bool_constant<alikeQuantities(U, V) && (N == M || N == Dynamic || M == Dynamic)> {};
 
 template <typename A, typename B>
 struct RunMatches<RepeatedRuns<A>, RepeatedRuns<B>> : RunsMatch<A, B> {};
@@ -171,6 +173,10 @@ inline constexpr bool is_dimensionless_space = isDimensionlessSpace<S>();
 
 template <int N, int M>
 inline constexpr bool is_dimensionless_space<QLinear<dimensionless, N, M>> = true;
+
+/** \internal Whether every leaf of \a S has a unit, as a matrix's spaces need; immediate for a plain Linear. */
+template <typename S>
+struct space_is_bound : std::bool_constant<isBoundSpace<S>()> {};
 
 /** \internal Whether the spaces \a A and \a B measure every coordinate alike, the rule of a sum. */
 template <typename A, typename B>

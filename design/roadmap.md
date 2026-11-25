@@ -44,6 +44,35 @@ prediction matches the plain one to rounding, and the compile-time measurement i
 recorded here with any regression explained. The outcome, go or no-go with the reasons, is recorded
 in decisions.md before step 5 starts.
 
+## 4. Units on mp-units — in progress
+
+[mp-units-dependency], [leaf-quantities], [heterogeneous-results], [additive-groups],
+[complex-scalars]. Before step 5, since it changes what the slice's rules compare: the units become
+mp-units' own, with conversion, and coordinate arithmetic is checked against the space's group.
+
+- [x] `Eigen/Units`: mp-units as the dependency of spaces with units, `internal::units_backend`
+      declared in Core and defined there, leaves whose first argument is a quantity spec, a unit, or
+      a reference, and `In<>` binding units to tags by dimension or by tag, kept by position; the
+      tests and failtests on mp-units' units, in place of the test unit types. Sums and products
+      compare runs of compatible quantities in equivalent units, so metres as a unit and as a
+      reference agree and nothing yet converts.
+- [ ] Conversion: sums and differences in the common unit, assignment and construction converting
+      into the destination, a product's inner coordinates converted to one factor c, and
+      `in<>()`; no conversion generated where the units agree.
+- [ ] Results of operands with different tags: shared tags kept and rebound, the untagged leaves of
+      the common quantities otherwise.
+- [ ] Coordinate arithmetic on groups under addition only: `Group.h` from EmrysFilter's
+      `groups-prototype` (`LieGroup`, the classification, `compose()`, `inverse()`, `identity()`,
+      `exp()`, `log()`), `UnitQuaternion`'s group members, and failtests for a difference of
+      quaternions; a covariance over the difference space of a state with a heading.
+- [ ] Complex scalars: `adjoint()` swapping the spaces, and the character of a leaf's spec checked
+      against `Scalar`.
+- [ ] mp-units quantities as scalars: `dt * v` with `dt` in seconds.
+
+Done when: the step 3 subset and the failtests pass, the typed prediction of step 3 runs in SI and
+in feet with the same values after conversion, and the compile-time measurement of step 3 is
+repeated with any regression explained.
+
 ## 5. Shape on spaces, the rest — not started
 
 [spaces-are-shape], [dual-spaces], [typed-blocks], [decomposition-boundaries]. Every expression
@@ -60,13 +89,6 @@ and decomposition the slice did not reach.
 Done when: `buildtests` and `check` pass with no test changed, the failtests fail for the right
 reason, the Kalman example matches the same filter on plain matrices to rounding, and the
 compile-time measurement of step 3, repeated, is recorded here with any regression explained.
-
-## 4. mp-units — not started
-
-- [ ] `Eigen/MPUnitsSupport`: mp-units units as the unit parameter, `one` mapped onto
-      `dimensionless`, and `m.at<RowPath, ColPath>()` returning an mp-units `quantity`.
-
-Done when: the Kalman example of step 5 is written with mp-units quantities throughout.
 
 ## 1a. EmrysFilter on the fork's spaces — not started
 

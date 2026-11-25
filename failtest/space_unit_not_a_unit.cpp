@@ -8,7 +8,7 @@
 
 using namespace Eigen;
 
-// The first argument of QLinear is a unit, never a number (Unit.h, Coordinates.h).
+// The first argument of QLinear is what it measures, never a number (Unit.h).
 #ifdef EIGEN_SHOULD_FAIL_TO_BUILD
 QLinear<3> space;
 #else

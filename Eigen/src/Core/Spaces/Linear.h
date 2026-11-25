@@ -66,15 +66,17 @@ class LeafExtent<Dynamic, MaxDimension> {
 }  // namespace internal
 
 /** \ingroup Spaces_Module
- * \brief \a Dimension_ plain coordinates in the unit \a U, or a resizable run of at most \a MaxDimension_ of them if
+ * \brief \a Dimension_ plain coordinates measuring \a Q, or a resizable run of at most \a MaxDimension_ of them if
  * \a Dimension_ is \c Dynamic.
  *
  * The default space everywhere: when fixed, an empty type. It has no normalize() and is its
- * own difference space, which is what makes it linear (design/decisions.md [linear-space]). Every coordinate has the
- * unit \a U, which comes first so that the maximum dimension need not be written to give it; the dimensionless leaf is
- * spelled Linear [mandatory-units].
+ * own difference space, which is what makes it linear (design/decisions.md [linear-space]). \a Q is an mp-units
+ * quantity spec (<tt>QLinear<isq::displacement, 3></tt>, for a tag, whose unit In binds), unit
+ * (<tt>QLinear<si::metre, 3></tt>), or reference (<tt>QLinear<isq::height[si::metre]></tt>); it comes first so that
+ * the maximum dimension need not be written to give it, and the dimensionless leaf is spelled Linear
+ * [leaf-quantities].
  */
-template <Unit auto U, int Dimension_ = 1, int MaxDimension_ = Dimension_>
+template <internal::QuantityArgument auto Q, int Dimension_ = 1, int MaxDimension_ = Dimension_>
 struct QLinear : internal::LeafExtent<Dimension_, MaxDimension_> {
   static_assert(Dimension_ == Dynamic || Dimension_ >= 0);
   static_assert(Dimension_ == Dynamic || MaxDimension_ == Dimension_, "a fixed size is its own maximum");
@@ -91,15 +93,15 @@ struct QLinear : internal::LeafExtent<Dimension_, MaxDimension_> {
     this->resize(n);
   }
 
-  /** \returns the unit of every coordinate, \a U */
-  static constexpr auto unit() { return U; }
+  /** \returns what every coordinate measures, \a Q: an mp-units quantity spec, unit, or reference */
+  static constexpr auto quantity() { return Q; }
 
   /** Equal when every stored parameter and size is; a fixed-size QLinear is always equal. */
   friend bool operator==(const QLinear&, const QLinear&) = default;
 };
 
 /** \ingroup Spaces_Module
- * \brief \a Dimension dimensionless plain coordinates: QLinear with the unit left out.
+ * \brief \a Dimension dimensionless plain coordinates: QLinear with the quantity left out.
  */
 template <int Dimension = 1, int MaxDimension = Dimension>
 using Linear = QLinear<dimensionless, Dimension, MaxDimension>;

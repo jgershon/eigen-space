@@ -205,7 +205,7 @@ must be given; an omitted one is NaN, which a `static_assert` rejects. The commo
 interval, as MATLAB's `wrapToPi` family is: `RadiansPi`, `Radians2Pi`, `Degrees180`, `Degrees360`. They name behavior;
 quantities such as a heading are the user's tags. Wrapping keeps a value inside its interval exactly, for every input.
 Parameters are `double` whatever the scalar, cast where used. The interval becomes a quantity when the unit joins the
-leaf ([mandatory-units](decisions.md#mandatory-units)).
+leaf ([leaf-quantities](decisions.md#leaf-quantities)).
 
 **Why.** Parameters in the type cost no storage, and a measurement written for a heading in degrees can't be handed a
 state in radians. An interval written by its ends shows at the call site what it is. Values known only at run time

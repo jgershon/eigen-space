@@ -75,30 +75,228 @@ concept IsDualSpace = requires(const T* t) { dualInner(t); };
 template <typename T>
 using DualInner = std::remove_pointer_t<decltype(dualInner(std::declval<const T*>()))>;
 
-template <typename S>
-consteval bool isDimensionlessSpace();
+/** \internal \a Size coordinates (\c Dynamic if resizable), each measuring \a Q: one leaf of a space. */
+template <auto Q, int Size>
+struct LeafRun {};
 
-/** \internal isDimensionlessSpace() over the blocks in the tuple type \a Blocks. */
-template <typename Blocks>
-struct AllDimensionless;
+/** \internal A Repeated block's leaves, repeated a number of times known at run time. */
+template <typename Leaves>
+struct RepeatedLeaves {};
 
-template <typename... Blocks>
-struct AllDimensionless<std::tuple<Blocks...>> : std::bool_constant<(isDimensionlessSpace<Blocks>() && ...)> {};
-
-/** \internal Whether every coordinate of \a S is dimensionless: its leaves' units, through composites, repeated
- * blocks, and duals. A space written from scratch, which declares no unit, is.
+/** \internal The leaves of the space \a S in order, as a std::tuple of LeafRun and RepeatedLeaves: through
+ * composites, repeated blocks, duals (every quantity inverted), and bound spaces (the bound quantities, by position).
  */
 template <typename S>
-consteval bool isDimensionlessSpace() {
-  if constexpr (IsDualSpace<S>) {
-    return isDimensionlessSpace<DualInner<S>>();
-  } else if constexpr (IsComposite<S>) {
-    return AllDimensionless<CompositeBlocks<S>>::value;
-  } else if constexpr (IsRepeated<S>) {
-    return isDimensionlessSpace<RepeatedBlock<S>>();
-  } else {
-    return isDimensionless(leafUnit<S>());
+struct SpaceLeaves;
+
+template <typename Blocks>
+struct BlocksLeaves;
+
+template <typename... Blocks>
+struct BlocksLeaves<std::tuple<Blocks...>> {
+  using type = decltype(std::tuple_cat(std::declval<typename SpaceLeaves<Blocks>::type>()...));
+};
+
+template <typename Leaves>
+struct InvertLeaves;
+
+template <typename Leaf>
+struct InvertLeaf;
+
+template <auto Q, int N>
+struct InvertLeaf<LeafRun<Q, N>> {
+  using type = LeafRun<inverseQuantity(Q), N>;
+};
+
+template <typename Leaves>
+struct InvertLeaf<RepeatedLeaves<Leaves>> {
+  using type = RepeatedLeaves<typename InvertLeaves<Leaves>::type>;
+};
+
+template <typename... Leaves>
+struct InvertLeaves<std::tuple<Leaves...>> {
+  using type = std::tuple<typename InvertLeaf<Leaves>::type...>;
+};
+
+/** \internal The leaves \a Leaves with the quantities \a Qs (a tuple of QuantityValue) put in from slot \a Offset on,
+ * and the slot after them.
+ */
+template <typename Leaves, typename Qs, int Offset>
+struct SubstituteLeaves;
+
+template <typename Leaf, typename Qs, int Offset>
+struct SubstituteLeaf;
+
+template <auto Q, int N, typename Qs, int Offset>
+struct SubstituteLeaf<LeafRun<Q, N>, Qs, Offset> {
+  using type = LeafRun<std::tuple_element_t<Offset, Qs>::value, N>;
+  static constexpr int next = Offset + 1;
+};
+
+template <typename Leaves, typename Qs, int Offset>
+struct SubstituteLeaf<RepeatedLeaves<Leaves>, Qs, Offset> {
+  using Inner = SubstituteLeaves<Leaves, Qs, Offset>;
+  using type = RepeatedLeaves<typename Inner::type>;
+  static constexpr int next = Inner::next;
+};
+
+template <typename Qs, int Offset>
+struct SubstituteLeaves<std::tuple<>, Qs, Offset> {
+  using type = std::tuple<>;
+  static constexpr int next = Offset;
+};
+
+template <typename First, typename... Rest, typename Qs, int Offset>
+struct SubstituteLeaves<std::tuple<First, Rest...>, Qs, Offset> {
+  using Head = SubstituteLeaf<First, Qs, Offset>;
+  using Tail = SubstituteLeaves<std::tuple<Rest...>, Qs, Head::next>;
+  using type =
+      decltype(std::tuple_cat(std::declval<std::tuple<typename Head::type>>(), std::declval<typename Tail::type>()));
+  static constexpr int next = Tail::next;
+};
+
+template <typename S>
+struct SpaceLeaves {
+  using type = std::tuple<LeafRun<leafQuantity<S>(), valueDimensionAtCompileTime<S>>>;
+};
+
+template <typename S>
+  requires IsBoundSpace<S>
+struct SpaceLeaves<S> {
+  using type = typename SubstituteLeaves<typename SpaceLeaves<BoundBase<S>>::type, BoundQuantities<S>, 0>::type;
+};
+
+template <typename S>
+  requires(!IsBoundSpace<S> && IsDualSpace<S>)
+struct SpaceLeaves<S> {
+  using type = typename InvertLeaves<typename SpaceLeaves<DualInner<S>>::type>::type;
+};
+
+template <typename S>
+  requires(!IsBoundSpace<S> && !IsDualSpace<S> && IsComposite<S>)
+struct SpaceLeaves<S> : BlocksLeaves<CompositeBlocks<S>> {};
+
+template <typename S>
+  requires(!IsBoundSpace<S> && !IsDualSpace<S> && IsRepeated<S>)
+struct SpaceLeaves<S> {
+  using type = std::tuple<RepeatedLeaves<typename SpaceLeaves<RepeatedBlock<S>>::type>>;
+};
+
+/** \internal The quantities of the leaves \a Leaves in order, a repetition's once, as a tuple of QuantityValue. */
+template <typename Leaves>
+struct LeafQuantities;
+
+template <typename... Leaves>
+struct LeafQuantities<std::tuple<Leaves...>> {
+  template <typename Leaf>
+  struct Of;
+  template <auto Q, int N>
+  struct Of<LeafRun<Q, N>> {
+    using type = std::tuple<QuantityValue<Q>>;
+  };
+  template <typename Inner>
+  struct Of<RepeatedLeaves<Inner>> {
+    using type = typename LeafQuantities<Inner>::type;
+  };
+  using type = decltype(std::tuple_cat(std::declval<typename Of<Leaves>::type>()...));
+};
+
+/** \internal What each slot of \a S measures, in order: the quantities a BoundSpace of \a S would hold. */
+template <typename S>
+using SlotQuantities = typename LeafQuantities<typename SpaceLeaves<S>::type>::type;
+
+template <typename S>
+consteval int slotCount() {
+  return int(std::tuple_size_v<SlotQuantities<S>>);
+}
+
+/** \internal The slots of the block of type \a Tag in \a S, at any depth, and how many blocks of the type there are:
+ * a binding by tag, or a path, names exactly one.
+ */
+struct SlotRange {
+  int offset = 0;  ///< the block's first slot
+  int count = 0;   ///< its slots
+  int found = 0;   ///< how many blocks of the type there are
+};
+
+template <typename S, typename Tag>
+consteval SlotRange slotRangeOf();
+
+template <typename Tag, typename Blocks>
+struct BlocksSlotRange;
+
+template <typename Tag, typename... Blocks>
+struct BlocksSlotRange<Tag, std::tuple<Blocks...>> {
+  static consteval SlotRange get() {
+    SlotRange result;
+    int offset = 0;
+    (
+        [&] {
+          const SlotRange inner = slotRangeOf<Blocks, Tag>();
+          if (inner.found > 0 && result.found == 0) {
+            result.offset = offset + inner.offset;
+            result.count = inner.count;
+          }
+          result.found += inner.found;
+          offset += slotCount<Blocks>();
+        }(),
+        ...);
+    return result;
   }
+};
+
+template <typename S, typename Tag>
+consteval SlotRange slotRangeOf() {
+  if constexpr (std::is_same_v<S, Tag>) {
+    return SlotRange{0, slotCount<S>(), 1};
+  } else if constexpr (IsBoundSpace<S>) {
+    return slotRangeOf<BoundBase<S>, Tag>();
+  } else if constexpr (IsDualSpace<S>) {
+    return slotRangeOf<DualInner<S>, Tag>();
+  } else if constexpr (IsComposite<S>) {
+    return BlocksSlotRange<Tag, CompositeBlocks<S>>::get();
+  } else if constexpr (IsRepeated<S>) {
+    return slotRangeOf<RepeatedBlock<S>, Tag>();
+  } else {
+    return SlotRange{};
+  }
+}
+
+/** \internal Whether the slots \a First to \a First + \a Count of \a Qs measure one quantity in one unit. */
+template <typename Qs, int First, std::size_t... Slot>
+consteval bool uniformSlots(std::index_sequence<Slot...>) {
+  if constexpr (sizeof...(Slot) == 0) {
+    return true;
+  } else {
+    constexpr auto first = std::tuple_element_t<First, Qs>::value;
+    return (sameQuantity(first, std::tuple_element_t<First + int(Slot), Qs>::value) && ...);
+  }
+}
+
+/** \internal Whether every coordinate of \a S is dimensionless, a plain number: through composites, repeated blocks,
+ * duals, and bound spaces. A space written from scratch, which declares no quantity, is.
+ */
+template <typename Qs>
+struct AllDimensionless;
+
+template <typename... Qs>
+struct AllDimensionless<std::tuple<Qs...>> : std::bool_constant<(isDimensionless(Qs::value) && ...)> {};
+
+template <typename S>
+consteval bool isDimensionlessSpace() {
+  return AllDimensionless<SlotQuantities<S>>::value;
+}
+
+/** \internal Whether every leaf of \a S has a unit, as the spaces of a QMatrix must [leaf-quantities]. */
+template <typename Qs>
+struct AllBound;
+
+template <typename... Qs>
+struct AllBound<std::tuple<Qs...>> : std::bool_constant<(isBound(Qs::value) && ...)> {};
+
+template <typename S>
+consteval bool isBoundSpace() {
+  return AllBound<SlotQuantities<S>>::value;
 }
 
 /** \internal The type Dual<S> denotes: the space itself where it is its own dual. */
@@ -112,109 +310,190 @@ struct DualOf<S> {
   using type = DualInner<S>;
 };
 
+/** \internal \returns what the first leaf of \a S measures, dimensionless where it has none: what every coordinate
+ * measures where hasUniformQuantity() holds.
+ */
 template <typename S>
-consteval auto firstUnit();
+consteval auto firstQuantity() {
+  using Qs = SlotQuantities<S>;
+  if constexpr (std::tuple_size_v<Qs> == 0) {
+    return dimensionless;
+  } else {
+    return std::tuple_element_t<0, Qs>::value;
+  }
+}
 
-/** \internal The unit of the first leaf of the blocks in the tuple type \a Blocks. */
-template <typename Blocks>
-struct FirstUnitOf;
+/** \internal Whether every coordinate of \a S measures one quantity in one unit, so that a reduction along it is well
+ * typed.
+ */
+template <typename S>
+consteval bool hasUniformQuantity() {
+  using Qs = SlotQuantities<S>;
+  return uniformSlots<Qs, 0>(std::make_index_sequence<std::tuple_size_v<Qs>>{});
+}
 
-template <typename First, typename... Rest>
-struct FirstUnitOf<std::tuple<First, Rest...>> {
-  static constexpr auto value = firstUnit<First>();
+/** \internal Whether every coordinate of \a S measures one quantity in one unit. */
+template <typename S>
+concept HasUniformQuantity = hasUniformQuantity<S>();
+
+/** \internal \returns what every coordinate of \a S measures, or fails to compile where its leaves disagree. */
+template <typename S>
+consteval auto uniformQuantity() {
+  static_assert(hasUniformQuantity<S>(), "the block measures more than one quantity, or in more than one unit");
+  return firstQuantity<S>();
+}
+
+/** \internal Whether the binding \a B, by tag, names the slot \a Slot of \a S. */
+template <typename S, int Slot, typename B>
+consteval bool tagBindingNames() {
+  if constexpr (IsTagBinding<B>) {
+    constexpr SlotRange range = slotRangeOf<S, typename B::TagType>();
+    static_assert(range.found == 1, "a binding by tag must name exactly one block of the space");
+    return Slot >= range.offset && Slot < range.offset + range.count;
+  } else {
+    return false;
+  }
+}
+
+/** \internal Whether the unit \a B, a binding by dimension, fits \a Leaf, what a slot without a unit measures. */
+template <auto Leaf, auto B>
+consteval bool unitBindingFits() {
+  if constexpr (IsTagBinding<decltype(B)> || IsEigenDimensionless<decltype(Leaf)>) {
+    return false;
+  } else if constexpr (isBound(Leaf)) {
+    return false;
+  } else {
+    return units_backend<decltype(Leaf)>::fits(Leaf, B);
+  }
+}
+
+/** \internal The unit of the first binding by tag in \a Bs that names the slot \a Slot of \a S. */
+template <typename S, int Slot, auto B, auto... Bs>
+consteval auto tagBoundUnit() {
+  if constexpr (tagBindingNames<S, Slot, decltype(B)>()) {
+    return decltype(B)::unit;
+  } else {
+    return tagBoundUnit<S, Slot, Bs...>();
+  }
+}
+
+/** \internal The first binding by dimension in \a Bs that fits \a Leaf. */
+template <auto Leaf, auto B, auto... Bs>
+consteval auto dimensionBoundUnit() {
+  if constexpr (unitBindingFits<Leaf, B>()) {
+    return B;
+  } else {
+    return dimensionBoundUnit<Leaf, Bs...>();
+  }
+}
+
+/** \internal What the slot \a Slot of \a S measures once the bindings \a Bs are applied: the unit of the one binding by
+ * tag that names it; else its own quantity where it has a unit or is dimensionless; else the unit of the one binding
+ * by dimension that fits it.
+ */
+template <typename S, int Slot, auto... Bs>
+consteval auto slotBound() {
+  constexpr auto leaf = std::tuple_element_t<Slot, SlotQuantities<S>>::value;
+  constexpr int byTag = (0 + ... + int(tagBindingNames<S, Slot, std::remove_cvref_t<decltype(Bs)>>()));
+  constexpr int byDimension = (0 + ... + int(unitBindingFits<leaf, Bs>()));
+  static_assert(byTag <= 1, "two bindings by tag name the same leaf");
+  if constexpr (byTag == 1) {
+    static_assert(!isBound(leaf), "a binding by tag names a leaf that has a unit already");
+    return units_backend<decltype(leaf)>::bind(leaf, tagBoundUnit<S, Slot, Bs...>());
+  } else if constexpr (isBound(leaf)) {
+    return leaf;
+  } else {
+    static_assert(byDimension == 1,
+                  "a leaf without a unit needs exactly one unit of its dimension, or a binding by tag");
+    return units_backend<decltype(leaf)>::bind(leaf, dimensionBoundUnit<leaf, Bs...>());
+  }
+}
+
+template <typename S, typename Slots, auto... Bs>
+struct InResolve;
+
+template <typename S, std::size_t... Slot, auto... Bs>
+struct InResolve<S, std::index_sequence<Slot...>, Bs...> {
+  using type = BoundSpace<S, slotBound<S, int(Slot), Bs...>()...>;
 };
-
-/** \internal \returns the unit of the first leaf of \a S: a leaf's unit(), a repeated block's, a composite's first
- * block's, and the inverse through a dual. The unit of every coordinate where hasUniformUnit() holds.
- */
-template <typename S>
-consteval auto firstUnit() {
-  if constexpr (IsDualSpace<S>) {
-    return inverseUnit(firstUnit<DualInner<S>>());
-  } else if constexpr (IsComposite<S>) {
-    return FirstUnitOf<CompositeBlocks<S>>::value;
-  } else if constexpr (IsRepeated<S>) {
-    return firstUnit<RepeatedBlock<S>>();
-  } else {
-    return leafUnit<S>();
-  }
-}
-
-template <typename S>
-consteval bool hasUniformUnit();
-
-/** \internal hasUniformUnit() over the blocks in the tuple type \a Blocks: each uniform, and all equal to the first. */
-template <typename Blocks>
-struct BlocksAgree;
-
-template <typename First, typename... Rest>
-struct BlocksAgree<std::tuple<First, Rest...>>
-    : std::bool_constant<(hasUniformUnit<First>() && ... && hasUniformUnit<Rest>()) &&
-                         (unitsEqual(firstUnit<First>(), firstUnit<Rest>()) && ...)> {};
-
-/** \internal Whether every coordinate of \a S has one unit, so that a reduction along it is well typed: a leaf
- * always, a composite when its blocks are uniform and agree, a repeated block or a dual when its block or space is.
- */
-template <typename S>
-consteval bool hasUniformUnit() {
-  if constexpr (IsDualSpace<S>) {
-    return hasUniformUnit<DualInner<S>>();
-  } else if constexpr (IsComposite<S>) {
-    return BlocksAgree<CompositeBlocks<S>>::value;
-  } else if constexpr (IsRepeated<S>) {
-    return hasUniformUnit<RepeatedBlock<S>>();
-  } else {
-    return true;
-  }
-}
-
-/** \internal Whether every coordinate of \a S has one unit. */
-template <typename S>
-concept HasUniformUnit = hasUniformUnit<S>();
-
-/** \internal \returns the unit every coordinate of \a S has, or fails to compile where the blocks of a composite
- * disagree.
- */
-template <typename S>
-consteval auto uniformUnit() {
-  static_assert(hasUniformUnit<S>(), "the block has more than one unit");
-  return firstUnit<S>();
-}
 
 }  // namespace internal
 
 /** \ingroup Spaces_Module
- * The dual of \a S (design/decisions.md [dual-spaces]): \a S itself where every unit of \a S is dimensionless, since
- * a dimensionless space is its own dual; the space \a S is the dual of, where \a S is a DualSpace; and otherwise
+ * \brief The space \a S with units bound to its leaves (design/decisions.md [leaf-quantities]).
+ *
+ * A tag names a space without units, <tt>struct Position : QLinear<isq::displacement, 3> {};</tt>, and In binds them:
+ *  - <tt>In<Position, si::metre></tt>: a unit for each leaf whose dimension it fits, which for a leaf is the leaf;
+ *  - <tt>In<State, si::metre, si::metre / si::second></tt>: one unit per dimension, wherever the blocks are;
+ *  - <tt>In<State, bind<Position>(si::metre), bind<Velocity>(si::foot / si::second)></tt>: by tag at any depth,
+ *    for two units of one dimension or to be explicit.
+ *
+ * A leaf that has a unit already, such as a periodic one, keeps it, and a leaf without one must get exactly one. The
+ * result keeps the tags and structure of \a S, and so does its difference space.
+ */
+template <typename S, auto... Bindings>
+using In = typename internal::InResolve<S, std::make_index_sequence<internal::slotCount<S>()>, Bindings...>::type;
+
+/** \ingroup Spaces_Module
+ * The dual of \a S (design/decisions.md [dual-spaces]): \a S itself where every coordinate of \a S is dimensionless,
+ * since a dimensionless space is its own dual; the space \a S is the dual of, where \a S is a DualSpace; and otherwise
  * DualSpace<S>.
  */
 template <Space S>
 using Dual = typename internal::DualOf<S>::type;
 
 /** \ingroup Spaces_Module
- * \returns the unit of every coordinate of the block that the path \a Path (a tag or a TagPath) names in the space
- * type \a S, inverted through a dual; a path into a composite whose blocks have different units does not compile.
- * <tt>unitAt<State, Position>()</tt> is the unit of the Position block of State, and
- * <tt>unitAt<Dual<State>, Position>()</tt> its inverse.
+ * \returns what every coordinate of the block that the path \a Path (a tag or a TagPath) names in the space type
+ * \a S measures, inverted through a dual: an mp-units reference, unit, or spec, or Eigen's dimensionless. A path to a
+ * block whose leaves measure different quantities does not compile.
  */
 template <Space S, typename Path>
-consteval auto unitAt() {
+consteval auto quantityAt() {
   if constexpr (internal::IsDualSpace<S>) {
-    return internal::inverseUnit(unitAt<internal::DualInner<S>, Path>());
+    return internal::inverseQuantity(quantityAt<internal::DualInner<S>, Path>());
   } else {
     [[maybe_unused]] constexpr auto resolved = internal::ResolvePath<S, Path>::value;  // the path exists in S
-    return internal::uniformUnit<internal::PathTag<Path>>();
+    constexpr internal::SlotRange range = internal::slotRangeOf<S, internal::PathTag<Path>>();
+    using Qs = internal::SlotQuantities<S>;
+    static_assert(internal::uniformSlots<Qs, range.offset>(std::make_index_sequence<std::size_t(range.count)>{}),
+                  "the block measures more than one quantity, or in more than one unit");
+    return std::tuple_element_t<range.offset, Qs>::value;
   }
 }
 
 /** \ingroup Spaces_Module
- * \returns the unit of every coordinate of the space type \a S, or fails to compile where its blocks disagree:
- * <tt>unitOf<Position>()</tt>, and <tt>unitOf<Dual<Position>>()</tt> for its inverse. A space written from scratch
- * is dimensionless.
+ * \returns what every coordinate of the space type \a S measures, or fails to compile where its leaves disagree.
+ */
+template <Space S>
+consteval auto quantityOf() {
+  return internal::uniformQuantity<S>();
+}
+
+/** \ingroup Spaces_Module
+ * \returns the unit of every coordinate of the block that \a Path names in \a S: <tt>unitAt<StateSI, Position>()</tt>
+ * is <tt>si::metre</tt>, and <tt>unitAt<Dual<StateSI>, Position>()</tt> its inverse.
+ */
+template <Space S, typename Path>
+consteval auto unitAt() {
+  constexpr auto q = quantityAt<S, Path>();
+  if constexpr (internal::IsEigenDimensionless<decltype(q)>) {
+    return q;
+  } else {
+    return internal::units_backend<decltype(q)>::unitOf(q);
+  }
+}
+
+/** \ingroup Spaces_Module
+ * \returns the unit of every coordinate of \a S, or fails to compile where its leaves disagree.
  */
 template <Space S>
 consteval auto unitOf() {
-  return internal::uniformUnit<S>();
+  constexpr auto q = quantityOf<S>();
+  if constexpr (internal::IsEigenDimensionless<decltype(q)>) {
+    return q;
+  } else {
+    return internal::units_backend<decltype(q)>::unitOf(q);
+  }
 }
 
 }  // namespace Eigen

@@ -14,6 +14,53 @@ namespace Eigen {
 
 namespace internal {
 
+/** \internal A quantity as a type, for lists of them. */
+template <auto Q>
+struct QuantityValue {
+  static constexpr auto value = Q;
+};
+
+}  // namespace internal
+
+template <typename S, auto... Qs>
+class BoundSpace;
+
+namespace internal {
+
+/** \internal Declared, never defined: matched by a pointer to a BoundSpace (Bound.h) or a tag derived from one. */
+template <typename S, auto... Qs>
+std::tuple<QuantityValue<Qs>...>* boundQuantities(const BoundSpace<S, Qs...>*);
+
+template <typename S, auto... Qs>
+S* boundBase(const BoundSpace<S, Qs...>*);
+
+/** \internal A BoundSpace, or a tag derived from one. */
+template <typename T>
+concept IsBoundSpace = requires(const T* t) { boundQuantities(t); };
+
+/** \internal The quantities of the BoundSpace \a T, as a tuple of QuantityValue. */
+template <typename T>
+using BoundQuantities = std::remove_pointer_t<decltype(boundQuantities(std::declval<const T*>()))>;
+
+/** \internal The unbound space of the BoundSpace \a T. */
+template <typename T>
+using BoundBase = std::remove_pointer_t<decltype(boundBase(std::declval<const T*>()))>;
+
+template <typename S>
+struct TagOfImpl {
+  using type = S;
+};
+template <IsBoundSpace S>
+struct TagOfImpl<S> {
+  using type = BoundBase<S>;
+};
+
+/** \internal The tag a block of type \a S answers to: \a S, or the space a BoundSpace binds units to, so that a
+ * path names a block whatever units it is in (design/decisions.md [leaf-quantities]).
+ */
+template <typename S>
+using TagOf = typename TagOfImpl<S>::type;
+
 /** \internal The CRTP type of a dense matrix or matrix expression \a T, however qualified, from derived(),
  * so that a <tt>MatrixBase<Derived></tt> passed on from a parameter of that type has it too.
  */
@@ -60,7 +107,7 @@ consteval int countTagIn(std::tuple<Blocks...>*) {
 
 template <typename Tag, typename S>
 consteval int countTag() {
-  if constexpr (std::is_same_v<Tag, S>) {
+  if constexpr (std::is_same_v<Tag, TagOf<S>>) {
     return 1;
   } else if constexpr (IsComposite<S>) {
     return countTagIn<Tag>(static_cast<CompositeBlocks<S>*>(nullptr));
@@ -120,7 +167,7 @@ consteval TagLocation locateTagIn(std::tuple<Blocks...>*) {
  */
 template <bool Difference, typename Tag, typename S>
 consteval TagLocation locateTag() {
-  if constexpr (std::is_same_v<Tag, S>) {
+  if constexpr (std::is_same_v<Tag, TagOf<S>>) {
     return {0, true, true};
   } else if constexpr (IsComposite<S>) {
     return locateTagIn<Difference, Tag>(static_cast<CompositeBlocks<S>*>(nullptr));
@@ -198,7 +245,7 @@ template <typename Tag, bool Difference = false, typename S>
 auto locate(S& space) {
   using Plain = std::remove_const_t<S>;
   using TagPointer = std::conditional_t<std::is_const_v<S>, const Tag*, Tag*>;
-  if constexpr (std::is_same_v<Tag, Plain>) {
+  if constexpr (std::is_same_v<Tag, TagOf<Plain>>) {
     return std::pair<Index, TagPointer>{0, &space};
   } else {
     static_assert(!IsUntagged<Tag>, "a path names blocks by tag; derive one, such as struct Heading : RadiansPi<> {}");

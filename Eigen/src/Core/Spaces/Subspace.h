@@ -139,7 +139,7 @@ auto blockWithout(const Block& block) {
  */
 template <typename Tag, typename... Rest, typename S>
 auto blocksWithout(const S& space) {
-  if constexpr (std::is_same_v<Tag, S>) {
+  if constexpr (std::is_same_v<Tag, TagOf<S>>) {
     if constexpr (sizeof...(Rest) == 0) {
       return std::tuple<>{};
     } else if constexpr (IsRepeated<Tag>) {

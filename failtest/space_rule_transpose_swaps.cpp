@@ -4,23 +4,20 @@
 // SPDX-FileCopyrightText: The Eigen Authors
 // SPDX-License-Identifier: MPL-2.0
 
-#include "../Eigen/Core"
+#include "../Eigen/Units"
+
+#include <mp-units/systems/isq.h>
+#include <mp-units/systems/si.h>
 
 using namespace Eigen;
+namespace si = mp_units::si;
+namespace isq = mp_units::isq;
 
-// A unit of exponents, enough to tell metres from metres per second.
-struct TestUnit {
-  int length;
-  int time;
-  friend constexpr TestUnit operator*(TestUnit a, TestUnit b) { return {a.length + b.length, a.time + b.time}; }
-  friend constexpr TestUnit operator/(TestUnit a, TestUnit b) { return {a.length - b.length, a.time - b.time}; }
-  friend constexpr bool operator==(TestUnit, TestUnit) = default;
-};
-constexpr TestUnit metre{1, 0};
-constexpr TestUnit metrePerSecond{1, -1};
-
-struct Position : QLinear<metre, 3> {};
-struct Velocity : QLinear<metrePerSecond, 3> {};
+// Tags without units, bound to SI units by In (design/decisions.md [leaf-quantities]).
+struct PositionTag : QLinear<isq::length, 3> {};
+struct VelocityTag : QLinear<isq::speed, 3> {};
+using Position = In<PositionTag, si::metre>;
+using Velocity = In<VelocityTag, si::metre / si::second>;
 using State = Composite<Position, Velocity>;
 
 // Transpose swaps the spaces: the transpose of a state vector pairs with a covector in Dual<State>, and a
