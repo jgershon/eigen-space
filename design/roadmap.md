@@ -85,6 +85,13 @@ Done when: the step 3 subset and the failtests pass, the typed prediction of ste
 in feet with the same values after conversion, and the compile-time measurement of step 3 is
 repeated with any regression explained.
 
+Measured after the items above, clang 21 at -O3 and one job, against the same baseline: run in
+sequence, `basicstuff` 40.9 s before and 29.8 s after, `product_large` 265.0 s and 182.0 s, a
+machine whose load fell between the runs; interleaved, `basicstuff` 27.3 s and 27.1 s before against
+27.8 s and 27.2 s after, no change beyond noise. Plain code still meets the rules through one check
+of plain spaces. A typed translation unit pays for mp-units and the rules: `units_1`, which includes
+Eigen/Units and exercises every rule, compiles in 8.5 s against 2.2 s for the plain `qmatrix_1`.
+
 ## 5. Shape on spaces, the rest — not started
 
 [spaces-are-shape], [dual-spaces], [typed-blocks], [decomposition-boundaries]. Every expression
