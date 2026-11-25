@@ -193,7 +193,7 @@ matrix, so no state vector and no covariance. `Dual<X>` as the leaf with its uni
 would drop the tags and with them addressing on the column side of a Jacobian.
 
 **Where.** `Eigen/src/Core/Spaces/Dual.h`; the rules in `CwiseBinaryOp.h`, `Product.h`,
-`Transpose.h`, `Inverse.h`, `Solve.h`, `Redux.h`, `VectorwiseOp.h`, `Dot.h` (step 3).
+`Transpose.h` (step 3), and `Inverse.h`, `Solve.h`, `Redux.h`, `VectorwiseOp.h`, `Dot.h` (step 5).
 
 ## typed-blocks
 
