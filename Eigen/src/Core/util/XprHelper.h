@@ -441,10 +441,28 @@ struct size_of_xpr_at_compile_time
 template <int Size, int MaxSize>
 using linear_space_of_size = Linear<Size, Size == Dynamic ? MaxSize : Size>;
 
+// The traits of a permutation, a transposition, or another non-dense operand of a product may not give maximum sizes.
+template <typename T>
+constexpr int max_rows_of_traits() {
+  if constexpr (requires { traits<T>::MaxRowsAtCompileTime; }) {
+    return traits<T>::MaxRowsAtCompileTime;
+  } else {
+    return traits<T>::RowsAtCompileTime;
+  }
+}
+template <typename T>
+constexpr int max_cols_of_traits() {
+  if constexpr (requires { traits<T>::MaxColsAtCompileTime; }) {
+    return traits<T>::MaxColsAtCompileTime;
+  } else {
+    return traits<T>::ColsAtCompileTime;
+  }
+}
+
 template <typename T>
 struct spaces_of {
-  using RowSpace = linear_space_of_size<traits<T>::RowsAtCompileTime, traits<T>::MaxRowsAtCompileTime>;
-  using ColSpace = linear_space_of_size<traits<T>::ColsAtCompileTime, traits<T>::MaxColsAtCompileTime>;
+  using RowSpace = linear_space_of_size<traits<T>::RowsAtCompileTime, max_rows_of_traits<T>()>;
+  using ColSpace = linear_space_of_size<traits<T>::ColsAtCompileTime, max_cols_of_traits<T>()>;
 };
 template <typename T>
 struct spaces_of<const T> : spaces_of<T> {};
@@ -458,6 +476,17 @@ struct spaces_of<QArray<RowSpace_, ColSpace_, Scalar_, Options_>> {
   using RowSpace = RowSpace_;
   using ColSpace = ColSpace_;
 };
+
+/* The space rules of design/decisions.md [dual-spaces], each with a bool value that holds when the operands' spaces
+ * fit the operation. Defined in Spaces/Rules.h, after the spaces, and the spaces_of of Product, CwiseBinaryOp,
+ * Transpose, and CwiseNullaryOp with them.
+ */
+template <typename Lhs, typename Rhs>
+struct product_spaces;
+template <typename BinaryOp, typename Lhs, typename Rhs>
+struct binary_op_spaces;
+template <typename Func, typename Dst, typename Src>
+struct assignment_spaces;
 
 /* plain_matrix_type : the difference from eval is that plain_matrix_type is always a plain matrix type,
  * whereas eval is a const reference in the case of a matrix

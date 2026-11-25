@@ -219,6 +219,9 @@ class Product
                                typename internal::traits<Lhs>::StorageKind, typename internal::traits<Rhs>::StorageKind,
                                internal::product_type<Lhs, Rhs>::value>::ret>::Base;
   EIGEN_GENERIC_PUBLIC_INTERFACE(Product)
+  static_assert(internal::product_spaces<Lhs, Rhs>::value,
+                "the column space of a product's left operand must be the dual of its right operand's row space "
+                "(design/decisions.md [dual-spaces])");
 
   using LhsNested = typename internal::ref_selector<Lhs>::type;
   using RhsNested = typename internal::ref_selector<Rhs>::type;

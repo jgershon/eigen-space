@@ -1057,6 +1057,9 @@ EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE constexpr void call_assignment_no_alias(Ds
   EIGEN_STATIC_ASSERT_LVALUE(Dst)
   EIGEN_STATIC_ASSERT_SAME_MATRIX_SIZE(ActualDstTypeCleaned, Src)
   EIGEN_CHECK_BINARY_COMPATIBILITY(Func, typename ActualDstTypeCleaned::Scalar, typename Src::Scalar);
+  static_assert(internal::assignment_spaces<Func, ActualDstTypeCleaned, Src>::value,
+                "an assignment needs the destination and the source in equal spaces, and a scaling by "
+                "a dimensionless factor (design/decisions.md [dual-spaces])");
 
   Assignment<ActualDstTypeCleaned, Src, Func>::run(actualDst, src, func);
 }

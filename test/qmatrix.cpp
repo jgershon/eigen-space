@@ -105,9 +105,77 @@ void typed_plain_objects_keep_their_spaces() {
   VERIFY_IS_EQUAL(px + py + pz + vy + vz, 0.0);
 }
 
+template <typename Xpr>
+using RowSpaceOf = typename internal::spaces_of<Xpr>::RowSpace;
+template <typename Xpr>
+using ColSpaceOf = typename internal::spaces_of<Xpr>::ColSpace;
+
+// Two blocks in one unit, and a resizable block, against the leaves they flatten to.
+struct Offset : QLinear<metre, 2> {};
+using Positions = Composite<Position, Offset>;
+using Covariance = QMatrix<State, State>;
+
+void space_rules_compare_units_not_types() {
+  // Tags, nesting, and the split into blocks don't change what the coordinates are measured in.
+  static_assert(internal::spaces_equal<Position, QLinear<metre, 3>>::value);
+  static_assert(internal::spaces_equal<Positions, QLinear<metre, 5>>::value);
+  static_assert(internal::spaces_equal<Composite<Positions>, Composite<QLinear<metre, 1>, QLinear<metre, 4>>>::value);
+  static_assert(internal::spaces_equal<State, Composite<QLinear<metre, 3>, QLinear<metrePerSecond, 3>>>::value);
+  // A resizable run in a unit matches any number of coordinates in it, and no others.
+  static_assert(internal::spaces_equal<Landmarks, Position>::value);
+  static_assert(!internal::spaces_equal<Landmarks, Velocity>::value);
+  static_assert(!internal::spaces_equal<Position, Velocity>::value);
+  static_assert(!internal::spaces_equal<State, Composite<Velocity, Position>>::value);
+  static_assert(!internal::spaces_equal<Position, Linear<3>>::value);
+  // The dual inverts every unit, and a dimensionless space is its own dual.
+  static_assert(internal::spaces_dual<Dual<State>, State>::value && internal::spaces_dual<State, Dual<State>>::value);
+  static_assert(!internal::spaces_dual<State, State>::value);
+  static_assert(internal::spaces_dual<Linear<3>, Linear<3>>::value);
+}
+
+void space_rules_type_sums_products_and_transposes() {
+  Transition f = Transition::Identity();
+  f.topRightCorner<3, 3>().diagonal().setConstant(0.1);  // position += dt * velocity, dt in seconds
+  Covariance p = Covariance::Identity();
+  StateVector x = StateVector::LinSpaced(6, 1.0, 6.0);
+
+  // Transpose swaps; a product is over its operands' outer spaces, and a sum over its operands'.
+  static_assert(std::is_same_v<RowSpaceOf<decltype(f.transpose())>, Dual<State>> &&
+                std::is_same_v<ColSpaceOf<decltype(f.transpose())>, State>);
+  static_assert(std::is_same_v<RowSpaceOf<decltype(f * x)>, State> &&
+                std::is_same_v<ColSpaceOf<decltype(f * x)>, Linear<1>>);
+  static_assert(std::is_same_v<RowSpaceOf<decltype(f * p)>, State> &&
+                std::is_same_v<ColSpaceOf<decltype(f * p)>, State>);
+  using Prediction = decltype(f * p * f.transpose());  // row-major by Eigen's product rule, so compare the spaces
+  static_assert(std::is_same_v<RowSpaceOf<Prediction>, State> && std::is_same_v<ColSpaceOf<Prediction>, State>);
+  static_assert(std::is_same_v<decltype(p + p)::PlainObject, Covariance>);
+  // A scalar is dimensionless, on either side; Zero() and Constant() are in the spaces of the type they are called on.
+  static_assert(std::is_same_v<decltype(2.0 * p)::PlainObject, Covariance>);
+  static_assert(std::is_same_v<decltype(p / 2.0)::PlainObject, Covariance>);
+  static_assert(std::is_same_v<decltype(p - Covariance::Zero())::PlainObject, Covariance>);
+  // A plain operand is untyped, as before.
+  static_assert(std::is_same_v<decltype(Matrix3d() * Matrix3d() + Matrix3d())::PlainObject, Matrix3d>);
+  // A quadratic form: a covector in Dual<State> against a vector in State is dimensionless.
+  using StateCovector = QVector<Dual<State>>;
+  static_assert(std::is_same_v<decltype(StateCovector().transpose() * x)::PlainObject, Matrix<double, 1, 1>>);
+
+  // The values are those of the same computation on plain matrices.
+  const Matrix<double, 6, 6> fPlain = Map<const Matrix<double, 6, 6>>(f.data());
+  const Matrix<double, 6, 1> xPlain = Map<const Matrix<double, 6, 1>>(x.data());
+  StateVector predicted = f * x;
+  predicted += 0.5 * x;
+  predicted *= 2.0;
+  VERIFY_IS_APPROX((Map<const Matrix<double, 6, 1>>(predicted.data())), (2.0 * (fPlain * xPlain + 0.5 * xPlain)));
+  Covariance q = f * p * f.transpose() + p;
+  VERIFY_IS_APPROX((Map<const Matrix<double, 6, 6>>(q.data())),
+                   (fPlain * fPlain.transpose() + Matrix<double, 6, 6>::Identity()));
+}
+
 EIGEN_DECLARE_TEST(qmatrix) {
   CALL_SUBTEST_1(old_spellings_name_the_q_types());
   CALL_SUBTEST_1(integer_parameters_deduce_through_the_alias());
   CALL_SUBTEST_1(typed_sizes_come_from_the_spaces());
   CALL_SUBTEST_1(typed_plain_objects_keep_their_spaces());
+  CALL_SUBTEST_1(space_rules_compare_units_not_types());
+  CALL_SUBTEST_1(space_rules_type_sums_products_and_transposes());
 }

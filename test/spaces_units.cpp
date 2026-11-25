@@ -195,6 +195,25 @@ void mp_units_units_are_units() {
   static_assert(DifferenceSpace<SiHeading>::unit() == si::radian);
 }
 
+// The space rules hold over mp-units' units: they compare units, so a unit spelled another way is the same unit, and
+// a covariance prediction over SI spaces has the values of the plain one.
+void mp_units_meet_the_space_rules() {
+  static_assert(internal::spaces_equal<SiPosition, QLinear<si::metre / si::second * si::second, 3>>::value);
+  static_assert(!internal::spaces_equal<SiPosition, SiVelocity>::value);
+  static_assert(internal::spaces_dual<Dual<SiState>, SiState>::value &&
+                !internal::spaces_dual<SiState, SiState>::value);
+
+  using SiTransition = QMatrix<SiState, Dual<SiState>>;
+  using SiCovariance = QMatrix<SiState, SiState>;
+  SiTransition f = SiTransition::Identity();
+  f.topRightCorner<3, 3>().diagonal().setConstant(0.1);
+  SiCovariance p = SiCovariance::Identity();
+  const SiCovariance q = f * p * f.transpose() + p;
+  const Matrix<double, 7, 7> fPlain = Eigen::Map<const Matrix<double, 7, 7>>(f.data());
+  VERIFY_IS_APPROX((Eigen::Map<const Matrix<double, 7, 7>>(q.data())),
+                   (fPlain * fPlain.transpose() + Matrix<double, 7, 7>::Identity()));
+}
+
 #endif  // EIGEN_TEST_MPUNITS
 
 }  // namespace
@@ -208,5 +227,6 @@ EIGEN_DECLARE_TEST(spaces_units) {
   CALL_SUBTEST_1(dual_inverts_units_and_keeps_the_structure());
 #ifdef EIGEN_TEST_MPUNITS
   CALL_SUBTEST_2(mp_units_units_are_units());
+  CALL_SUBTEST_2(mp_units_meet_the_space_rules());
 #endif
 }

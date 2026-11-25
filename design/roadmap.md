@@ -21,15 +21,22 @@ typing of the operations a covariance prediction needs, and what it costs to com
       objects from spaces. Existing tests pass unchanged, which is the check that deduction and
       partial specialization on `Matrix<Scalar, Rows, Cols, ...>` survive the alias. One header
       changed to fit: `AlignedVector3`'s traits, which borrowed a 3-row `Matrix` with room for 4.
-- [ ] The space rules in `CwiseBinaryOp` (sum and difference: equal spaces), `Product` (the inner
+- [x] The space rules in `CwiseBinaryOp` (sum and difference: equal spaces), `Product` (the inner
       spaces dual to each other), and `Transpose`, each with a failtest for a mismatched unit.
-- [ ] A typed covariance prediction, `P = F * P * F.transpose() + Q`, on a position and velocity
+      Assignment is checked too, since a typed prediction means nothing if its result can land in
+      any matrix, and so is a cwise product of two typed operands; `Spaces/Rules.h` compares
+      spaces as runs of one unit, so plain operands skip the rules at the cost of one check.
+- [x] A typed covariance prediction, `P = F * P * F.transpose() + Q`, on a position and velocity
       state with units in metres and metres per second, checked against the same computation on
-      plain matrices.
-- [ ] A compile-time measurement: `basicstuff` and `product_large` timed before and after. After
+      plain matrices: in `test/qmatrix.cpp`, and over mp-units' SI units in
+      `test/spaces_units.cpp`.
+- [x] A compile-time measurement: `basicstuff` and `product_large` timed before and after. After
       the first item, with clang 21 at -O3 and one job: `basicstuff` 29.2 s before, 31.5 s and
       29.6 s after; `product_large` 196.4 s before, 194.9 s and 198.9 s after; no change beyond
-      noise. To repeat once the space rules are in.
+      noise. With the space rules in, timed back to back against the same baseline on a busier
+      machine: `basicstuff` 39.3 s before, 33.4 s after; `product_large` 227.8 s before, 232.6 s
+      after (+2%, within the run-to-run spread). Plain operands meet the rules through one check
+      of their Linear spaces, which is why the cost does not show.
 
 Done when: a representative subset of the tests passes with no test changed (the slice is an
 experiment; the whole suite is step 5's bar), the failtests fail for the right reason, the typed

@@ -182,7 +182,13 @@ linear map from X to Z is `QMatrix<Z, Dual<X>>`, a covariance of x is `QMatrix<X
 information matrix is `QMatrix<Dual<X>, Dual<X>>`. The operations:
 
 - sum, difference, and cwise operations: equal spaces, where `Linear<Dynamic>` is compatible with
-  `Linear<n>` of the same unit and keeps today's run-time size check;
+  `Linear<n>` of the same unit and keeps today's run-time size check. Equal means measured alike
+  coordinate by coordinate, not the same type: tags, nesting, and periodicity do not enter, so
+  `Composite<Position, Offset>` in metres equals `QLinear<metre, 5>`. A cwise product or quotient
+  is typed only against a dimensionless operand, as a scalar is;
+- assignment, construction, `+=`, and `-=`: the destination's spaces equal the source's; `*=` and
+  `/=` take a dimensionless factor. `Zero()`, `Constant()`, and `Identity()` are in the spaces of
+  the type they are called on;
 - product: `C_lhs` is `Dual<R_rhs>`, result `(R_lhs, C_rhs)`; the inner-dimension static assert is
   the dimensionless case;
 - transpose swaps; inverse is `(Dual<C>, Dual<R>)`; a solve of `A x = b` puts x in `Dual<C>`;
@@ -201,8 +207,14 @@ Typing through the scalar, `Matrix<quantity<U>>`, as mp-units and Au do: one uni
 matrix, so no state vector and no covariance. `Dual<X>` as the leaf with its unit inverted, which
 would drop the tags and with them addressing on the column side of a Jacobian.
 
-**Where.** `Eigen/src/Core/Spaces/Dual.h`; the rules in `CwiseBinaryOp.h`, `Product.h`,
-`Transpose.h` (step 3), and `Inverse.h`, `Solve.h`, `Redux.h`, `VectorwiseOp.h`, `Dot.h` (step 5).
+An expression the rules do not reach yet (a block, a map, a unary operation) has dimensionless
+spaces, so it combines with untyped operands only: a false rejection, never a wrong unit, except that
+it drops the units of a typed operand it wraps.
+
+**Where.** `Eigen/src/Core/Spaces/Dual.h`; the rules in `Spaces/Rules.h`, checked in
+`CwiseBinaryOp.h`, `Product.h`, and `AssignEvaluator.h`, with the spaces of `Transpose`, `Product`,
+`CwiseBinaryOp`, and `CwiseNullaryOp` (step 3); `failtest/space_rule_*.cpp`; and `Inverse.h`,
+`Solve.h`, `Redux.h`, `VectorwiseOp.h`, `Dot.h`, and the blocks and maps (step 5).
 
 ## typed-blocks
 
