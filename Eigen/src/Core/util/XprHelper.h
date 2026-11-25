@@ -486,6 +486,10 @@ struct space_is_bound;
 // The plain matrices are instantiated by Core's own headers before the spaces are defined.
 template <int N, int M>
 struct space_is_bound<QLinear<dimensionless, N, M>> : std::true_type {};
+template <typename Space, typename Scalar>
+struct space_holds_scalar;
+template <int N, int M, typename Scalar>
+struct space_holds_scalar<QLinear<dimensionless, N, M>, Scalar> : std::true_type {};
 template <typename Lhs, typename Rhs>
 struct product_spaces;
 template <typename BinaryOp, typename Lhs, typename Rhs>

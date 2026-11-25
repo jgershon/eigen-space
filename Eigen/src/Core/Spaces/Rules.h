@@ -247,6 +247,10 @@ inline constexpr bool is_plain_space<QLinear<dimensionless, N, M>> = true;
 template <typename S>
 struct space_is_bound : std::bool_constant<isBoundSpace<S>()> {};
 
+/** \internal Whether every coordinate of \a S holds a \a Scalar of the right character [complex-scalars]. */
+template <typename S, typename Scalar>
+struct space_holds_scalar : std::bool_constant<spaceHoldsScalar<S, Scalar>()> {};
+
 /** \internal Whether the spaces \a A and \a B measure compatible quantities, coordinate by coordinate: the rule of a
  * sum, converting where the units differ. */
 template <typename A, typename B>
@@ -717,6 +721,42 @@ struct spaces_of<CwiseUnaryOp<space_relabel_op<RowSpace_, ColSpace_, Scalar>, Xp
   using RowSpace = RowSpace_;
   using ColSpace = ColSpace_;
 };
+
+/** \internal Whether a coefficient-wise unary operation keeps what its operand measures: negation and the complex
+ * parts and conjugate, so that adjoint() swaps the spaces as transpose() does [complex-scalars]. Any other unary
+ * operation has dimensionless spaces, as an expression the rules do not reach. */
+template <typename Op>
+struct unary_op_keeps_spaces : std::false_type {};
+template <typename S>
+struct unary_op_keeps_spaces<scalar_opposite_op<S>> : std::true_type {};
+template <typename S>
+struct unary_op_keeps_spaces<scalar_conjugate_op<S>> : std::true_type {};
+template <typename S>
+struct unary_op_keeps_spaces<scalar_real_op<S>> : std::true_type {};
+template <typename S>
+struct unary_op_keeps_spaces<scalar_imag_op<S>> : std::true_type {};
+template <typename S>
+struct unary_op_keeps_spaces<scalar_abs_op<S>> : std::true_type {};
+
+template <typename S>
+struct unary_op_keeps_spaces<scalar_real_ref_op<S>> : std::true_type {};
+template <typename S>
+struct unary_op_keeps_spaces<scalar_imag_ref_op<S>> : std::true_type {};
+
+template <typename UnaryOp, typename Xpr>
+  requires(unary_op_keeps_spaces<UnaryOp>::value)
+struct spaces_of<CwiseUnaryOp<UnaryOp, Xpr>> : spaces_of<remove_all_t<Xpr>> {};
+
+// The writable real() and imag() of a complex matrix.
+template <typename ViewOp, typename Xpr, typename StrideType>
+  requires(unary_op_keeps_spaces<ViewOp>::value)
+struct spaces_of<CwiseUnaryView<ViewOp, Xpr, StrideType>> : spaces_of<remove_all_t<Xpr>> {};
+
+/** \internal \a xpr reported in the spaces \a ToRow and \a ToCol, with its coefficients as they are. */
+template <typename ToRow, typename ToCol, typename Xpr>
+auto relabelSpaces(const Xpr& xpr) {
+  return CwiseUnaryOp<space_relabel_op<ToRow, ToCol, typename traits<Xpr>::Scalar>, const Xpr>(xpr);
+}
 
 /** \internal The conversion factor of each run of an axis, from the pairs \a Pairs of its source and target runs. */
 template <typename Pairs>

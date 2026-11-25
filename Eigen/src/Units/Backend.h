@@ -170,6 +170,26 @@ struct units_backend {
     return toMp(a) * toMp(b);
   }
 
+  /** Whether a coordinate measuring \a q holds a \a Scalar of the right character [complex-scalars]: complex for a
+   * complex spec, real for a real one, as mp-units' RepresentationOf checks; anything for a unit given alone, as for
+   * mp-units' kind_of references, and for a vector or tensor spec, whose character is recorded and not checked. */
+  template <typename Scalar, typename A>
+  static consteval bool scalarFits(A q) {
+    using M = decltype(toMp(q));
+    if constexpr (IsEigenDimensionless<A> || MpUnitAlone<M>) {
+      return true;
+    } else {
+      constexpr auto character = decltype(specOf(q))::character;
+      if constexpr (character == mp_units::quantity_character::complex_scalar) {
+        return NumTraits<Scalar>::IsComplex;
+      } else if constexpr (character == mp_units::quantity_character::real_scalar) {
+        return !NumTraits<Scalar>::IsComplex;
+      } else {
+        return true;
+      }
+    }
+  }
+
   /** Whether \a unit can be bound to \a spec. */
   template <typename A, typename U>
   static consteval bool fits(A spec, U unit) {

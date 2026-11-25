@@ -19,6 +19,7 @@
 #include <Eigen/Geometry>
 #include <Eigen/Units>
 
+#include <complex>
 #include <type_traits>
 
 namespace {
@@ -241,6 +242,45 @@ void additive_groups_type_coordinate_arithmetic() {
   VERIFY_IS_APPROX(difference(3), 6.0);
 }
 
+// An mp-units quantity scales a matrix as a number does, and its unit multiplies the row space: a time step times a
+// velocity is a displacement, in whatever unit of time.
+void quantities_scale_matrices() {
+  const QVector<PositionM> p(1.0, 2.0, 3.0);
+  const QVector<In<Velocity, metrePerSecond>> v(10.0, 20.0, 30.0);
+  const auto dt = 0.1 * si::second;
+  static_assert(!internal::IsBoundSpace<RowSpaceOf<decltype(dt * v)>>);  // a speed times a time: the tag goes
+  const QVector<PositionM> next = p + dt * v;
+  VERIFY_IS_APPROX((Map<const Vector3d>(next.data())), Vector3d(2.0, 4.0, 6.0));
+  const auto dtMilliseconds = 100.0 * si::milli<si::second>;
+  const QVector<PositionM> again = p + v * dtMilliseconds;
+  VERIFY_IS_APPROX((Map<const Vector3d>(again.data())), Vector3d(2.0, 4.0, 6.0));
+  const QVector<In<Velocity, metrePerSecond>> speed = (next - p) / dt;
+  VERIFY_IS_APPROX((Map<const Vector3d>(speed.data())), (Map<const Vector3d>(v.data())));
+}
+
+struct Phasors : QLinear<isq::voltage_phasor, 2> {};
+
+// Units do not depend on the scalar being complex: a complex spec holds a complex scalar, adjoint() swaps the spaces,
+// and the complex parts keep the units [complex-scalars].
+void complex_scalars_keep_units() {
+  using PhasorsV = In<Phasors, si::volt>;
+  using Voltages = QVector<PhasorsV, std::complex<double>>;
+  Voltages a;
+  a << std::complex<double>(1.0, 2.0), std::complex<double>(3.0, -1.0);
+  static_assert(std::is_same_v<RowSpaceOf<decltype(a.adjoint())>, Linear<1>> &&
+                std::is_same_v<ColSpaceOf<decltype(a.adjoint())>, PhasorsV>);
+  static_assert(std::is_same_v<RowSpaceOf<decltype(a.real())>, PhasorsV> &&
+                std::is_same_v<RowSpaceOf<decltype(-a)>, PhasorsV>);
+  const Voltages negated = -a.conjugate();
+  VERIFY_IS_APPROX(negated(0), std::complex<double>(-1.0, 2.0));
+  const auto power = (a.adjoint() * a).eval();  // volts squared, untagged
+  VERIFY_IS_APPROX(power(0, 0).real(), 15.0);
+  static_assert(internal::spaceHoldsScalar<PhasorsV, std::complex<double>>() &&
+                !internal::spaceHoldsScalar<PhasorsV, double>());
+  static_assert(!internal::spaceHoldsScalar<PositionM, std::complex<double>>() &&
+                internal::spaceHoldsScalar<QLinear<si::volt, 2>, std::complex<double>>());
+}
+
 }  // namespace
 
 EIGEN_DECLARE_TEST(units) {
@@ -252,4 +292,6 @@ EIGEN_DECLARE_TEST(units) {
   CALL_SUBTEST_1(covariance_prediction_in_feet_and_metres());
   CALL_SUBTEST_1(products_convert_their_inner_coordinates());
   CALL_SUBTEST_1(additive_groups_type_coordinate_arithmetic());
+  CALL_SUBTEST_1(quantities_scale_matrices());
+  CALL_SUBTEST_1(complex_scalars_keep_units());
 }

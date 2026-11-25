@@ -75,9 +75,11 @@ mp-units' own, with conversion, and coordinate arithmetic is checked against the
 - [ ] The group operations of `groups-prototype`: `LieGroup`, `compose()`, `inverse()`,
       `identity()`, `exp()`, `log()`, and `UnitQuaternion`'s group members. No rule needs them; the
       error of the rule above names them as what to use.
-- [ ] Complex scalars: `adjoint()` swapping the spaces, and the character of a leaf's spec checked
-      against `Scalar`.
-- [ ] mp-units quantities as scalars: `dt * v` with `dt` in seconds.
+- [x] Complex scalars: `adjoint()` swapping the spaces, and the character of a leaf's spec checked
+      against `Scalar`. Negation, the conjugate, `real()`, `imag()`, and `abs()` keep their operand's
+      spaces; any other unary operation still has dimensionless ones.
+- [x] mp-units quantities as scalars: `dt * v` with `dt` in seconds, `v * dt`, and `x / dt`, which
+      multiply the row space by what the quantity measures (`Eigen/src/Units/Scalars.h`).
 
 Done when: the step 3 subset and the failtests pass, the typed prediction of step 3 runs in SI and
 in feet with the same values after conversion, and the compile-time measurement of step 3 is

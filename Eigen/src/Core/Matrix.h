@@ -215,6 +215,10 @@ class QMatrix : public PlainObjectBase<QMatrix<RowSpace_, ColSpace_, Scalar_, Op
   static_assert(
       internal::space_is_bound<RowSpace_>::value && internal::space_is_bound<ColSpace_>::value,
       "every leaf of a matrix's spaces needs a unit; bind one with In (design/decisions.md [leaf-quantities])");
+  static_assert(internal::space_holds_scalar<RowSpace_, Scalar_>::value &&
+                    internal::space_holds_scalar<ColSpace_, Scalar_>::value,
+                "a complex quantity needs a complex scalar and a real one a real scalar (design/decisions.md "
+                "[complex-scalars])");
 
   using PlainObject = typename Base::PlainObject;
 

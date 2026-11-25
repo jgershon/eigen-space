@@ -299,6 +299,18 @@ consteval bool isBoundSpace() {
   return AllBound<SlotQuantities<S>>::value;
 }
 
+/** \internal Whether every coordinate of \a S holds a \a Scalar of the right character [complex-scalars]. */
+template <typename Scalar, typename Qs>
+struct AllHoldScalar;
+
+template <typename Scalar, typename... Qs>
+struct AllHoldScalar<Scalar, std::tuple<Qs...>> : std::bool_constant<(scalarFitsQuantity<Scalar>(Qs::value) && ...)> {};
+
+template <typename S, typename Scalar>
+consteval bool spaceHoldsScalar() {
+  return AllHoldScalar<Scalar, SlotQuantities<S>>::value;
+}
+
 /** \internal The type Dual<S> denotes: the space itself where it is its own dual. */
 template <typename S>
 struct DualOf {

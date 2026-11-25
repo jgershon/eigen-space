@@ -161,6 +161,16 @@ consteval bool isDimensionlessKind(const Q& q) {
   }
 }
 
+/** \internal Whether a coordinate measuring \a q holds a \a Scalar of the right character [complex-scalars]. */
+template <typename Scalar, typename Q>
+consteval bool scalarFitsQuantity(const Q& q) {
+  if constexpr (IsEigenDimensionless<Q>) {
+    return true;
+  } else {
+    return units_backend<Q>::template scalarFits<Scalar>(q);
+  }
+}
+
 /** \internal The quantity of the dual coordinate: \a q inverted. */
 template <typename Q>
 consteval auto inverseQuantity(const Q& q) {
