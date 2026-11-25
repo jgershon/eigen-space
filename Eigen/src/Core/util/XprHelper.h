@@ -218,13 +218,13 @@ struct nested_functor_cost {
   static constexpr Index Cost = static_cast<Index>(functor_traits<Xpr>::Cost);
 };
 
-template <typename Scalar, int Rows, int Cols, int Options, int MaxRows, int MaxCols>
-struct nested_functor_cost<Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols>> {
+template <typename RowSpace, typename ColSpace, typename Scalar, int Options>
+struct nested_functor_cost<QMatrix<RowSpace, ColSpace, Scalar, Options>> {
   static constexpr Index Cost = 1;
 };
 
-template <typename Scalar, int Rows, int Cols, int Options, int MaxRows, int MaxCols>
-struct nested_functor_cost<Array<Scalar, Rows, Cols, Options, MaxRows, MaxCols>> {
+template <typename RowSpace, typename ColSpace, typename Scalar, int Options>
+struct nested_functor_cost<QArray<RowSpace, ColSpace, Scalar, Options>> {
   static constexpr Index Cost = 1;
 };
 
@@ -432,6 +432,33 @@ struct size_of_xpr_at_compile_time
     : std::integral_constant<int, size_at_compile_time(traits<XprType>::RowsAtCompileTime,
                                                        traits<XprType>::ColsAtCompileTime)> {};
 
+/* spaces_of : the row and column spaces of an expression (design/decisions.md [spaces-are-shape]). They are not in
+ * traits, which expressions such as Transpose and Block inherit from their argument's traits: a space inherited that
+ * way would be wrong without failing. An expression with no specialization has dimensionless Linear spaces of its
+ * compile-time sizes, so a typed operand degrades to plain sizes rather than to a wrong unit. A fixed size is its own
+ * maximum there, as it is for every space, even where traits give a larger one for storage (AlignedVector3).
+ */
+template <int Size, int MaxSize>
+using linear_space_of_size = Linear<Size, Size == Dynamic ? MaxSize : Size>;
+
+template <typename T>
+struct spaces_of {
+  using RowSpace = linear_space_of_size<traits<T>::RowsAtCompileTime, traits<T>::MaxRowsAtCompileTime>;
+  using ColSpace = linear_space_of_size<traits<T>::ColsAtCompileTime, traits<T>::MaxColsAtCompileTime>;
+};
+template <typename T>
+struct spaces_of<const T> : spaces_of<T> {};
+template <typename RowSpace_, typename ColSpace_, typename Scalar_, int Options_>
+struct spaces_of<QMatrix<RowSpace_, ColSpace_, Scalar_, Options_>> {
+  using RowSpace = RowSpace_;
+  using ColSpace = ColSpace_;
+};
+template <typename RowSpace_, typename ColSpace_, typename Scalar_, int Options_>
+struct spaces_of<QArray<RowSpace_, ColSpace_, Scalar_, Options_>> {
+  using RowSpace = RowSpace_;
+  using ColSpace = ColSpace_;
+};
+
 /* plain_matrix_type : the difference from eval is that plain_matrix_type is always a plain matrix type,
  * whereas eval is a const reference in the case of a matrix
  */
@@ -474,16 +501,14 @@ struct plain_matrix_type<T, SkewSymmetricShape> {
 
 template <typename T, int Flags>
 struct plain_matrix_type_dense<T, MatrixXpr, Flags> {
-  using type = Matrix<typename traits<T>::Scalar, traits<T>::RowsAtCompileTime, traits<T>::ColsAtCompileTime,
-                      AutoAlign | (Flags & RowMajorBit ? RowMajor : ColMajor), traits<T>::MaxRowsAtCompileTime,
-                      traits<T>::MaxColsAtCompileTime>;
+  using type = QMatrix<typename spaces_of<T>::RowSpace, typename spaces_of<T>::ColSpace, typename traits<T>::Scalar,
+                       AutoAlign | (Flags & RowMajorBit ? RowMajor : ColMajor)>;
 };
 
 template <typename T, int Flags>
 struct plain_matrix_type_dense<T, ArrayXpr, Flags> {
-  using type = Array<typename traits<T>::Scalar, traits<T>::RowsAtCompileTime, traits<T>::ColsAtCompileTime,
-                     AutoAlign | (Flags & RowMajorBit ? RowMajor : ColMajor), traits<T>::MaxRowsAtCompileTime,
-                     traits<T>::MaxColsAtCompileTime>;
+  using type = QArray<typename spaces_of<T>::RowSpace, typename spaces_of<T>::ColSpace, typename traits<T>::Scalar,
+                      AutoAlign | (Flags & RowMajorBit ? RowMajor : ColMajor)>;
 };
 
 /* eval : the return type of eval(). For matrices, this is just a const reference
@@ -509,14 +534,14 @@ struct eval<T, SkewSymmetricShape> {
 };
 
 // for matrices, no need to evaluate, just use a const reference to avoid a useless copy
-template <typename Scalar_, int Rows_, int Cols_, int Options_, int MaxRows_, int MaxCols_>
-struct eval<Matrix<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>, Dense> {
-  using type = const Matrix<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>&;
+template <typename RowSpace_, typename ColSpace_, typename Scalar_, int Options_>
+struct eval<QMatrix<RowSpace_, ColSpace_, Scalar_, Options_>, Dense> {
+  using type = const QMatrix<RowSpace_, ColSpace_, Scalar_, Options_>&;
 };
 
-template <typename Scalar_, int Rows_, int Cols_, int Options_, int MaxRows_, int MaxCols_>
-struct eval<Array<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>, Dense> {
-  using type = const Array<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>&;
+template <typename RowSpace_, typename ColSpace_, typename Scalar_, int Options_>
+struct eval<QArray<RowSpace_, ColSpace_, Scalar_, Options_>, Dense> {
+  using type = const QArray<RowSpace_, ColSpace_, Scalar_, Options_>&;
 };
 
 /* similar to plain_matrix_type, but using the evaluator's Flags */
@@ -536,8 +561,8 @@ struct plain_matrix_type_column_major {
   static constexpr int Cols = traits<T>::ColsAtCompileTime;
   static constexpr int MaxRows = traits<T>::MaxRowsAtCompileTime;
   static constexpr int MaxCols = traits<T>::MaxColsAtCompileTime;
-  using type = Matrix<typename traits<T>::Scalar, Rows, Cols, (MaxRows == 1 && MaxCols != 1) ? RowMajor : ColMajor,
-                      MaxRows, MaxCols>;
+  using type = QMatrix<typename spaces_of<T>::RowSpace, typename spaces_of<T>::ColSpace, typename traits<T>::Scalar,
+                       (MaxRows == 1 && MaxCols != 1) ? RowMajor : ColMajor>;
 };
 
 /* plain_matrix_type_row_major : same as plain_matrix_type but guaranteed to be row-major
@@ -548,8 +573,8 @@ struct plain_matrix_type_row_major {
   static constexpr int Cols = traits<T>::ColsAtCompileTime;
   static constexpr int MaxRows = traits<T>::MaxRowsAtCompileTime;
   static constexpr int MaxCols = traits<T>::MaxColsAtCompileTime;
-  using type = Matrix<typename traits<T>::Scalar, Rows, Cols, (MaxCols == 1 && MaxRows != 1) ? ColMajor : RowMajor,
-                      MaxRows, MaxCols>;
+  using type = QMatrix<typename spaces_of<T>::RowSpace, typename spaces_of<T>::ColSpace, typename traits<T>::Scalar,
+                       (MaxCols == 1 && MaxRows != 1) ? ColMajor : RowMajor>;
 };
 
 /** \internal The reference selector for template expressions. The idea is that we don't

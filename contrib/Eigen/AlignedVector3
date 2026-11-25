@@ -41,8 +41,13 @@ template <typename Scalar_>
 class AlignedVector3;
 
 namespace internal {
+// The storage and alignment of a 4-vector with 3 rows. A Matrix with 3 rows and room for 4 would need a space with 3
+// coordinates and room for 4, which no space is (design/decisions.md [spaces-are-shape]).
 template <typename Scalar_>
-struct traits<AlignedVector3<Scalar_> > : traits<Matrix<Scalar_, 3, 1, 0, 4, 1> > {};
+struct traits<AlignedVector3<Scalar_> > : traits<Matrix<Scalar_, 4, 1> > {
+  static constexpr int RowsAtCompileTime = 3;
+  static constexpr int OuterStrideAtCompileTime = 3;
+};
 }  // namespace internal
 
 template <typename Scalar_>

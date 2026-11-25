@@ -311,13 +311,13 @@ struct NumTraits<std::complex<Real_> > : GenericNumTraits<std::complex<Real_> > 
   EIGEN_DEVICE_FUNC constexpr static int max_digits10() { return NumTraits<Real>::max_digits10(); }
 };
 
-template <typename Scalar, int Rows, int Cols, int Options, int MaxRows, int MaxCols>
-struct NumTraits<Array<Scalar, Rows, Cols, Options, MaxRows, MaxCols> > {
-  using ArrayType = Array<Scalar, Rows, Cols, Options, MaxRows, MaxCols>;
+template <typename RowSpace, typename ColSpace, typename Scalar, int Options>
+struct NumTraits<QArray<RowSpace, ColSpace, Scalar, Options>> {
+  using ArrayType = QArray<RowSpace, ColSpace, Scalar, Options>;
   using RealScalar = typename NumTraits<Scalar>::Real;
-  using Real = Array<RealScalar, Rows, Cols, Options, MaxRows, MaxCols>;
+  using Real = QArray<RowSpace, ColSpace, RealScalar, Options>;
   using NonIntegerScalar = typename NumTraits<Scalar>::NonInteger;
-  using NonInteger = Array<NonIntegerScalar, Rows, Cols, Options, MaxRows, MaxCols>;
+  using NonInteger = QArray<RowSpace, ColSpace, NonIntegerScalar, Options>;
   using Nested = ArrayType&;
   using Literal = typename NumTraits<Scalar>::Literal;
 

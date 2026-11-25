@@ -285,19 +285,6 @@ DifferenceSpace<S> differenceSpace(const S& space) {
 }
 
 /** \ingroup Spaces_Module
- * The value dimension of \a S at compile time, or \c Dynamic if it is resizable.
- */
-template <typename S>
-inline constexpr int valueDimensionAtCompileTime = S::ValueDimensionStep == 0 ? S::FixedValueDimension : Dynamic;
-
-/** \ingroup Spaces_Module
- * The largest valid value dimension of \a S, or \c Dynamic if it is unbounded.
- */
-template <typename S>
-inline constexpr int maxValueDimensionAtCompileTime =
-    S::ValueDimensionStep == 0 ? S::FixedValueDimension : S::MaxValueDimension;
-
-/** \ingroup Spaces_Module
  * \returns the number of coordinates of a value in \a space, the length of a mean or a sample:
  * the space's own valueDimension().
  *
@@ -707,6 +694,9 @@ void fitValueDimension(S& space, Index n) {
 }
 
 }  // namespace internal
+
+template <Space S>
+class DualSpace;
 
 }  // namespace Eigen
 

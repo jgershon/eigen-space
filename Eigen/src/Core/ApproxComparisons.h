@@ -79,11 +79,11 @@ EIGEN_DEVICE_FUNC bool operator<=(const comparison_magnitude<RealScalar>& x,
 template <typename X>
 struct scaled_comparison_viewable : std::false_type {};
 
-template <typename Scalar, int Rows, int Cols, int Options, int MaxRows, int MaxCols>
-struct scaled_comparison_viewable<Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols>> : std::true_type {};
+template <typename RowSpace, typename ColSpace, typename Scalar, int Options>
+struct scaled_comparison_viewable<QMatrix<RowSpace, ColSpace, Scalar, Options>> : std::true_type {};
 
-template <typename Scalar, int Rows, int Cols, int Options, int MaxRows, int MaxCols>
-struct scaled_comparison_viewable<Array<Scalar, Rows, Cols, Options, MaxRows, MaxCols>> : std::true_type {};
+template <typename RowSpace, typename ColSpace, typename Scalar, int Options>
+struct scaled_comparison_viewable<QArray<RowSpace, ColSpace, Scalar, Options>> : std::true_type {};
 
 template <typename PlainObjectType, int Options, typename StrideType>
 struct scaled_comparison_viewable<Map<PlainObjectType, Options, StrideType>> : std::true_type {};

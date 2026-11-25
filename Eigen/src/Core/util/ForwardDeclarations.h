@@ -61,12 +61,30 @@ class PlainObjectBase;
 template <typename Derived, int Level>
 class DenseCoeffsBase;
 
-template <typename Scalar_, int Rows_, int Cols_,
-          int Options_ = AutoAlign | ((Rows_ == 1 && Cols_ != 1)   ? Eigen::RowMajor
-                                      : (Cols_ == 1 && Rows_ != 1) ? Eigen::ColMajor
-                                                                   : EIGEN_DEFAULT_MATRIX_STORAGE_ORDER_OPTION),
+namespace internal {
+
+/** \internal The default Options of a plain object with \a Rows by \a Cols coefficients: row-major for a row vector,
+ * column-major for a column vector, and EIGEN_DEFAULT_MATRIX_STORAGE_ORDER_OPTION otherwise.
+ */
+constexpr int default_plain_options(int Rows, int Cols) {
+  return AutoAlign | ((Rows == 1 && Cols != 1)   ? Eigen::RowMajor
+                      : (Cols == 1 && Rows != 1) ? Eigen::ColMajor
+                                                 : EIGEN_DEFAULT_MATRIX_STORAGE_ORDER_OPTION);
+}
+
+}  // end namespace internal
+
+template <typename RowSpace_, typename ColSpace_, typename Scalar_ = double,
+          int Options_ = internal::default_plain_options(valueDimensionAtCompileTime<RowSpace_>,
+                                                         valueDimensionAtCompileTime<ColSpace_>)>
+class QMatrix;
+
+// Matrix is QMatrix on dimensionless Linear spaces, with the signature it has always had (design/decisions.md
+// [q-names]). A template deducing Rows_ from a Matrix deduces it from the Linear inside the QMatrix, so it must be
+// int, the type of Linear's own parameter.
+template <typename Scalar_, int Rows_, int Cols_, int Options_ = internal::default_plain_options(Rows_, Cols_),
           int MaxRows_ = Rows_, int MaxCols_ = Cols_>
-class Matrix;
+using Matrix = QMatrix<Linear<Rows_, MaxRows_>, Linear<Cols_, MaxCols_>, Scalar_, Options_>;
 
 template <typename Derived>
 class MatrixBase;
@@ -377,12 +395,15 @@ struct scalar_bessel_k1e_op;
 struct IOFormat;
 
 // Array module
-template <typename Scalar_, int Rows_, int Cols_,
-          int Options_ = AutoAlign | ((Rows_ == 1 && Cols_ != 1)   ? Eigen::RowMajor
-                                      : (Cols_ == 1 && Rows_ != 1) ? Eigen::ColMajor
-                                                                   : EIGEN_DEFAULT_MATRIX_STORAGE_ORDER_OPTION),
+template <typename RowSpace_, typename ColSpace_, typename Scalar_ = double,
+          int Options_ = internal::default_plain_options(valueDimensionAtCompileTime<RowSpace_>,
+                                                         valueDimensionAtCompileTime<ColSpace_>)>
+class QArray;
+
+// Array is QArray on dimensionless Linear spaces, as Matrix is QMatrix (design/decisions.md [q-names]).
+template <typename Scalar_, int Rows_, int Cols_, int Options_ = internal::default_plain_options(Rows_, Cols_),
           int MaxRows_ = Rows_, int MaxCols_ = Cols_>
-class Array;
+using Array = QArray<Linear<Rows_, MaxRows_>, Linear<Cols_, MaxCols_>, Scalar_, Options_>;
 template <typename MatrixType, typename BinaryOp, int Direction>
 class PartialReduxExpr;
 template <typename ExpressionType, int Direction>

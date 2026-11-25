@@ -66,22 +66,26 @@ struct structured_binding_element<Idx_, Scalar_, Rows_, Cols_, true> {
 namespace std {
 
 // std::tuple_size / std::tuple_element for Matrix.
-template <typename Scalar_, int Rows_, int Cols_, int Options_, int MaxRows_, int MaxCols_>
-struct tuple_size<Eigen::Matrix<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>>
-    : Eigen::internal::structured_binding_size<Rows_, Cols_> {};
+template <typename RowSpace_, typename ColSpace_, typename Scalar_, int Options_>
+struct tuple_size<Eigen::QMatrix<RowSpace_, ColSpace_, Scalar_, Options_>>
+    : Eigen::internal::structured_binding_size<Eigen::valueDimensionAtCompileTime<RowSpace_>,
+                                               Eigen::valueDimensionAtCompileTime<ColSpace_>> {};
 
-template <size_t Idx_, typename Scalar_, int Rows_, int Cols_, int Options_, int MaxRows_, int MaxCols_>
-struct tuple_element<Idx_, Eigen::Matrix<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>>
-    : Eigen::internal::structured_binding_element<Idx_, Scalar_, Rows_, Cols_> {};
+template <size_t Idx_, typename RowSpace_, typename ColSpace_, typename Scalar_, int Options_>
+struct tuple_element<Idx_, Eigen::QMatrix<RowSpace_, ColSpace_, Scalar_, Options_>>
+    : Eigen::internal::structured_binding_element<Idx_, Scalar_, Eigen::valueDimensionAtCompileTime<RowSpace_>,
+                                                  Eigen::valueDimensionAtCompileTime<ColSpace_>> {};
 
 // std::tuple_size / std::tuple_element for Array.
-template <typename Scalar_, int Rows_, int Cols_, int Options_, int MaxRows_, int MaxCols_>
-struct tuple_size<Eigen::Array<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>>
-    : Eigen::internal::structured_binding_size<Rows_, Cols_> {};
+template <typename RowSpace_, typename ColSpace_, typename Scalar_, int Options_>
+struct tuple_size<Eigen::QArray<RowSpace_, ColSpace_, Scalar_, Options_>>
+    : Eigen::internal::structured_binding_size<Eigen::valueDimensionAtCompileTime<RowSpace_>,
+                                               Eigen::valueDimensionAtCompileTime<ColSpace_>> {};
 
-template <size_t Idx_, typename Scalar_, int Rows_, int Cols_, int Options_, int MaxRows_, int MaxCols_>
-struct tuple_element<Idx_, Eigen::Array<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>>
-    : Eigen::internal::structured_binding_element<Idx_, Scalar_, Rows_, Cols_> {};
+template <size_t Idx_, typename RowSpace_, typename ColSpace_, typename Scalar_, int Options_>
+struct tuple_element<Idx_, Eigen::QArray<RowSpace_, ColSpace_, Scalar_, Options_>>
+    : Eigen::internal::structured_binding_element<Idx_, Scalar_, Eigen::valueDimensionAtCompileTime<RowSpace_>,
+                                                  Eigen::valueDimensionAtCompileTime<ColSpace_>> {};
 
 }  // namespace std
 
@@ -99,27 +103,31 @@ namespace Eigen {
                 "Structured bindings on 2D RowMajor Eigen matrices are disabled to prevent storage-order confusion.");
 
 // get<Idx_> free functions for Matrix.
-template <size_t Idx_, typename Scalar_, int Rows_, int Cols_, int Options_, int MaxRows_, int MaxCols_>
-EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Scalar_& get(
-    Matrix<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>& m) noexcept {
+template <size_t Idx_, typename RowSpace_, typename ColSpace_, typename Scalar_, int Options_>
+EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Scalar_& get(QMatrix<RowSpace_, ColSpace_, Scalar_, Options_>& m) noexcept {
+  constexpr int Rows_ = valueDimensionAtCompileTime<RowSpace_>;
+  constexpr int Cols_ = valueDimensionAtCompileTime<ColSpace_>;
   static_assert(Rows_ != Dynamic && Cols_ != Dynamic, "Structured bindings require fixed-size Eigen types.");
   static_assert(Idx_ < static_cast<size_t>(Rows_ * Cols_), "Index out of range.");
   EIGEN_STRUCTURED_BINDINGS_ASSERT_COL_MAJOR(Rows_, Cols_, Options_);
   return m.coeffRef(static_cast<Index>(Idx_));
 }
 
-template <size_t Idx_, typename Scalar_, int Rows_, int Cols_, int Options_, int MaxRows_, int MaxCols_>
+template <size_t Idx_, typename RowSpace_, typename ColSpace_, typename Scalar_, int Options_>
 EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE const Scalar_& get(
-    const Matrix<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>& m) noexcept {
+    const QMatrix<RowSpace_, ColSpace_, Scalar_, Options_>& m) noexcept {
+  constexpr int Rows_ = valueDimensionAtCompileTime<RowSpace_>;
+  constexpr int Cols_ = valueDimensionAtCompileTime<ColSpace_>;
   static_assert(Rows_ != Dynamic && Cols_ != Dynamic, "Structured bindings require fixed-size Eigen types.");
   static_assert(Idx_ < static_cast<size_t>(Rows_ * Cols_), "Index out of range.");
   EIGEN_STRUCTURED_BINDINGS_ASSERT_COL_MAJOR(Rows_, Cols_, Options_);
   return m.coeffRef(static_cast<Index>(Idx_));
 }
 
-template <size_t Idx_, typename Scalar_, int Rows_, int Cols_, int Options_, int MaxRows_, int MaxCols_>
-EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Scalar_&& get(
-    Matrix<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>&& m) noexcept {
+template <size_t Idx_, typename RowSpace_, typename ColSpace_, typename Scalar_, int Options_>
+EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Scalar_&& get(QMatrix<RowSpace_, ColSpace_, Scalar_, Options_>&& m) noexcept {
+  constexpr int Rows_ = valueDimensionAtCompileTime<RowSpace_>;
+  constexpr int Cols_ = valueDimensionAtCompileTime<ColSpace_>;
   static_assert(Rows_ != Dynamic && Cols_ != Dynamic, "Structured bindings require fixed-size Eigen types.");
   static_assert(Idx_ < static_cast<size_t>(Rows_ * Cols_), "Index out of range.");
   EIGEN_STRUCTURED_BINDINGS_ASSERT_COL_MAJOR(Rows_, Cols_, Options_);
@@ -127,27 +135,31 @@ EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Scalar_&& get(
 }
 
 // get<Idx_> free functions for Array.
-template <size_t Idx_, typename Scalar_, int Rows_, int Cols_, int Options_, int MaxRows_, int MaxCols_>
-EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Scalar_& get(
-    Array<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>& a) noexcept {
+template <size_t Idx_, typename RowSpace_, typename ColSpace_, typename Scalar_, int Options_>
+EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Scalar_& get(QArray<RowSpace_, ColSpace_, Scalar_, Options_>& a) noexcept {
+  constexpr int Rows_ = valueDimensionAtCompileTime<RowSpace_>;
+  constexpr int Cols_ = valueDimensionAtCompileTime<ColSpace_>;
   static_assert(Rows_ != Dynamic && Cols_ != Dynamic, "Structured bindings require fixed-size Eigen types.");
   static_assert(Idx_ < static_cast<size_t>(Rows_ * Cols_), "Index out of range.");
   EIGEN_STRUCTURED_BINDINGS_ASSERT_COL_MAJOR(Rows_, Cols_, Options_);
   return a.coeffRef(static_cast<Index>(Idx_));
 }
 
-template <size_t Idx_, typename Scalar_, int Rows_, int Cols_, int Options_, int MaxRows_, int MaxCols_>
+template <size_t Idx_, typename RowSpace_, typename ColSpace_, typename Scalar_, int Options_>
 EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE const Scalar_& get(
-    const Array<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>& a) noexcept {
+    const QArray<RowSpace_, ColSpace_, Scalar_, Options_>& a) noexcept {
+  constexpr int Rows_ = valueDimensionAtCompileTime<RowSpace_>;
+  constexpr int Cols_ = valueDimensionAtCompileTime<ColSpace_>;
   static_assert(Rows_ != Dynamic && Cols_ != Dynamic, "Structured bindings require fixed-size Eigen types.");
   static_assert(Idx_ < static_cast<size_t>(Rows_ * Cols_), "Index out of range.");
   EIGEN_STRUCTURED_BINDINGS_ASSERT_COL_MAJOR(Rows_, Cols_, Options_);
   return a.coeffRef(static_cast<Index>(Idx_));
 }
 
-template <size_t Idx_, typename Scalar_, int Rows_, int Cols_, int Options_, int MaxRows_, int MaxCols_>
-EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Scalar_&& get(
-    Array<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>&& a) noexcept {
+template <size_t Idx_, typename RowSpace_, typename ColSpace_, typename Scalar_, int Options_>
+EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Scalar_&& get(QArray<RowSpace_, ColSpace_, Scalar_, Options_>&& a) noexcept {
+  constexpr int Rows_ = valueDimensionAtCompileTime<RowSpace_>;
+  constexpr int Cols_ = valueDimensionAtCompileTime<ColSpace_>;
   static_assert(Rows_ != Dynamic && Cols_ != Dynamic, "Structured bindings require fixed-size Eigen types.");
   static_assert(Idx_ < static_cast<size_t>(Rows_ * Cols_), "Index out of range.");
   EIGEN_STRUCTURED_BINDINGS_ASSERT_COL_MAJOR(Rows_, Cols_, Options_);

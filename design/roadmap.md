@@ -9,26 +9,31 @@ The fork's first goal is to show that units in Eigen's own types are feasible. E
 matrices is where the work leads, not where it starts: step 3 is a vertical slice that decides
 whether the design holds, and the rest of the refactor, mp-units, and EmrysFilter follow it.
 
-## 3. Feasibility slice — not started
+## 3. Feasibility slice — in progress
 
 [spaces-are-shape], [q-names], [space-first], [dual-spaces]. The least of the refactor that answers
 whether a space can be Eigen's shape parameter: the alias that keeps every existing spelling, the
 typing of the operations a covariance prediction needs, and what it costs to compile.
 
-- [ ] `QMatrix` and `QArray` as the primary templates; `Matrix`, `Array`, `Vector`, `RowVector`,
-      and the typedefs as aliases; `RowSpace` and `ColSpace` in traits, with the integer constants
-      derived, and the plain-type helpers in `XprHelper.h` building plain objects from spaces.
-      Every existing test passes unchanged, which is the check that deduction and partial
-      specialization on `Matrix<Scalar, Rows, Cols, ...>` survive the alias.
+- [x] `QMatrix` and `QArray` as the primary templates; `Matrix`, `Array`, `Vector`, `RowVector`,
+      and the typedefs as aliases; the integer constants derived from the spaces, which
+      `internal::spaces_of` reports, and the plain-type helpers in `XprHelper.h` building plain
+      objects from spaces. Existing tests pass unchanged, which is the check that deduction and
+      partial specialization on `Matrix<Scalar, Rows, Cols, ...>` survive the alias. One header
+      changed to fit: `AlignedVector3`'s traits, which borrowed a 3-row `Matrix` with room for 4.
 - [ ] The space rules in `CwiseBinaryOp` (sum and difference: equal spaces), `Product` (the inner
       spaces dual to each other), and `Transpose`, each with a failtest for a mismatched unit.
 - [ ] A typed covariance prediction, `P = F * P * F.transpose() + Q`, on a position and velocity
       state with units in metres and metres per second, checked against the same computation on
       plain matrices.
-- [ ] A compile-time measurement: `basicstuff` and `product_large` timed before and after.
+- [ ] A compile-time measurement: `basicstuff` and `product_large` timed before and after. After
+      the first item, with clang 21 at -O3 and one job: `basicstuff` 29.2 s before, 31.5 s and
+      29.6 s after; `product_large` 196.4 s before, 194.9 s and 198.9 s after; no change beyond
+      noise. To repeat once the space rules are in.
 
-Done when: `buildtests` and `check` pass with no test changed, the failtests fail for the right
-reason, the typed prediction matches the plain one to rounding, and the compile-time measurement is
+Done when: a representative subset of the tests passes with no test changed (the slice is an
+experiment; the whole suite is step 5's bar), the failtests fail for the right reason, the typed
+prediction matches the plain one to rounding, and the compile-time measurement is
 recorded here with any regression explained. The outcome, go or no-go with the reasons, is recorded
 in decisions.md before step 5 starts.
 

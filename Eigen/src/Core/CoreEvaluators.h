@@ -256,20 +256,20 @@ struct evaluator<PlainObjectBase<Derived>> : evaluator_base<Derived> {
   }
 };
 
-template <typename Scalar, int Rows, int Cols, int Options, int MaxRows, int MaxCols>
-struct evaluator<Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols>>
-    : evaluator<PlainObjectBase<Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols>>> {
-  using XprType = Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols>;
+template <typename RowSpace, typename ColSpace, typename Scalar, int Options>
+struct evaluator<QMatrix<RowSpace, ColSpace, Scalar, Options>>
+    : evaluator<PlainObjectBase<QMatrix<RowSpace, ColSpace, Scalar, Options>>> {
+  using XprType = QMatrix<RowSpace, ColSpace, Scalar, Options>;
 
   EIGEN_DEVICE_FUNC constexpr evaluator() = default;
 
   EIGEN_DEVICE_FUNC constexpr explicit evaluator(const XprType& m) : evaluator<PlainObjectBase<XprType>>(m) {}
 };
 
-template <typename Scalar, int Rows, int Cols, int Options, int MaxRows, int MaxCols>
-struct evaluator<Array<Scalar, Rows, Cols, Options, MaxRows, MaxCols>>
-    : evaluator<PlainObjectBase<Array<Scalar, Rows, Cols, Options, MaxRows, MaxCols>>> {
-  using XprType = Array<Scalar, Rows, Cols, Options, MaxRows, MaxCols>;
+template <typename RowSpace, typename ColSpace, typename Scalar, int Options>
+struct evaluator<QArray<RowSpace, ColSpace, Scalar, Options>>
+    : evaluator<PlainObjectBase<QArray<RowSpace, ColSpace, Scalar, Options>>> {
+  using XprType = QArray<RowSpace, ColSpace, Scalar, Options>;
 
   EIGEN_DEVICE_FUNC constexpr evaluator() = default;
 

@@ -195,6 +195,8 @@ using std::size_t;
 #include "src/Core/util/Constants.h"
 #include "src/Core/util/Meta.h"
 #include "src/Core/util/Assert.h"
+#include "src/Core/Spaces/Unit.h"
+#include "src/Core/Spaces/Linear.h"
 #include "src/Core/util/ForwardDeclarations.h"
 #include "src/Core/util/StaticAssert.h"
 #include "src/Core/util/ShapeChecks.h"
@@ -508,7 +510,6 @@ using std::size_t;
 #include "src/Core/GlobalFunctions.h"
 
 #include "src/Core/Spaces/Space.h"
-#include "src/Core/Spaces/Unit.h"
 #include "src/Core/Spaces/Coordinates.h"
 #include "src/Core/Spaces/Composite.h"
 #include "src/Core/Spaces/TagPath.h"

@@ -152,7 +152,7 @@ space.
 `RealSpace<3>`. `Euclidean<3>`, the runner-up, which names the metric estimators assume but makes no claim about the
 operations, which are what the code checks.
 
-**Where.** `Spaces/Coordinates.h`.
+**Where.** `Spaces/Linear.h`.
 
 ## no-bounded-coordinates
 

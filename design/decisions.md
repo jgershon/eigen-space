@@ -60,24 +60,33 @@ integers. A space's `FixedValueDimension`, `ValueDimensionStep`, and `MaxValueDi
 `RowsAtCompileTime` and `MaxRowsAtCompileTime` as `valueDimensionAtCompileTime<S>` and
 `maxValueDimensionAtCompileTime<S>`, and the rest of Eigen reads those constants as it does today.
 `Linear<N>` is today's `N`, `Linear<Dynamic>` is `Dynamic`, and `Linear<Dynamic, M>` is `Dynamic`
-with a maximum of `M`. Traits carry `RowSpace` and `ColSpace`, and every expression that changes
-shape (products, transposes, blocks, replication, reshaping, reductions) computes its spaces, with
-the integers following. Spaces are types, never template arguments by value.
+with a maximum of `M`. An expression's spaces are `internal::spaces_of<Xpr>::RowSpace` and
+`ColSpace`, and every expression that changes shape (products, transposes, blocks, replication,
+reshaping, reductions) specializes it to compute them, with the integers following. An expression
+without a specialization has dimensionless `Linear` spaces of its sizes. The plain objects name
+their spaces as the member types `RowSpace` and `ColSpace`. Spaces are types, never template
+arguments by value.
 
 **Why.** The triple is already a generalization of Eigen's pair for one axis, so making it primary
 adds no second source of truth, and the derived integers keep the 850 uses of the compile-time
 sizes in `Eigen/src` unchanged. What moves is the code that builds plain types from integers: the
-plain-type helpers in `XprHelper.h`, the plain objects, `Block`, `Map`, and `Ref`.
+plain-type helpers in `XprHelper.h`, the plain objects, `Block`, `Map`, and `Ref`. The spaces are
+kept out of `traits` because `Transpose`, `Block`, `Map`, and others derive their traits from their
+argument's: a `RowSpace` in `traits<QMatrix>` would pass to a transpose unchanged, which for a
+square matrix is the wrong unit with no error. A trait each expression must opt into fails safe
+instead, to plain sizes.
 
 **Rejected.** A traits-level `RowSpace` beside the integers, both authoritative: two things to keep
-consistent in every expression. A typed matrix wrapping an Eigen matrix (TypedLinearAlgebra's
+consistent in every expression. `RowSpace` in `traits` with the integers derived from it: inherited
+silently by every expression whose traits derive from its argument's. A typed matrix wrapping an Eigen matrix (TypedLinearAlgebra's
 pattern, and EmrysFilter's `GaussianParams`): it cannot type Eigen's expressions, blocks, or
 decompositions, and it fixes the size at compile time. Spaces as `auto` template arguments by
 value, to keep one `Matrix` name for both spellings: every tag and `Composite` would have to be
 structural, and users would write `Position{}` for a type.
 
-**Where.** `Eigen/src/Core/Matrix.h`, `Array.h`, `PlainObjectBase.h`, `DenseStorage.h`,
-`util/XprHelper.h`, `util/ForwardDeclarations.h`, `Block.h`, `Map.h`, `Ref.h`.
+**Where.** `Eigen/src/Core/Matrix.h`, `Array.h`, `DenseBase.h` (`PlainObject`),
+`util/XprHelper.h` (`spaces_of` and the plain-type helpers), `util/ForwardDeclarations.h`,
+`Spaces/Linear.h`; `Block.h`, `Map.h`, `Ref.h` (step 5); `test/qmatrix.cpp`.
 
 ## q-names
 
@@ -158,7 +167,7 @@ mandatory; as the second, `Linear<3, si::metre>`, which broke `Linear<Dynamic, 8
 for the dimensionless alias on the model of `MatrixXd`, `LinearD`: those letters name concrete sizes
 and scalars, and `D` already reads as dynamic or double. A `Quantity<Unit, Space>` adaptor.
 
-**Where.** `Eigen/src/Core/Spaces/Unit.h`, `Coordinates.h`, `Dual.h`; `test/spaces_units.cpp`.
+**Where.** `Eigen/src/Core/Spaces/Unit.h`, `Linear.h`, `Coordinates.h`, `Dual.h`; `test/spaces_units.cpp`.
 
 ## dual-spaces
 

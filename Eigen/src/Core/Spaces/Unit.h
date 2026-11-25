@@ -136,9 +136,6 @@ constexpr auto leafUnit() {
 
 }  // namespace internal
 
-template <Space S>
-class DualSpace;
-
 }  // namespace Eigen
 
 #endif  // EIGEN_SPACES_UNIT_H

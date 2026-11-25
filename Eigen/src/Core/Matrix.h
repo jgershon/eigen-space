@@ -18,9 +18,14 @@
 namespace Eigen {
 
 namespace internal {
-template <typename Scalar_, int Rows_, int Cols_, int Options_, int MaxRows_, int MaxCols_>
-struct traits<Matrix<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>> {
+template <typename RowSpace_, typename ColSpace_, typename Scalar_, int Options_>
+struct traits<QMatrix<RowSpace_, ColSpace_, Scalar_, Options_>> {
  private:
+  // The integer shape is derived from the spaces (design/decisions.md [spaces-are-shape]).
+  static constexpr int Rows_ = valueDimensionAtCompileTime<RowSpace_>;
+  static constexpr int Cols_ = valueDimensionAtCompileTime<ColSpace_>;
+  static constexpr int MaxRows_ = maxValueDimensionAtCompileTime<RowSpace_>;
+  static constexpr int MaxCols_ = maxValueDimensionAtCompileTime<ColSpace_>;
   constexpr static int size = internal::size_at_compile_time(Rows_, Cols_);
   using PacketScalar = typename find_best_packet<Scalar_, size>::type;
   enum {
@@ -58,7 +63,7 @@ struct traits<Matrix<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>> {
 };
 }  // namespace internal
 
-/** \class Matrix
+/** \class QMatrix
  * \ingroup Core_Module
  *
  * \brief The matrix class, also used for vectors and row-vectors
@@ -68,7 +73,14 @@ struct traits<Matrix<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>> {
  *
  * The %Matrix class encompasses \em both fixed-size and dynamic-size objects (\ref fixedsize "note").
  *
- * The first three template parameters are required:
+ * The class itself is <tt>QMatrix<RowSpace_, ColSpace_, Scalar_ = double, Options_></tt>, shaped by a space for each
+ * axis (design/decisions.md [spaces-are-shape], [q-names]): the space's value dimension is the number of rows or
+ * columns, and its units are those of the coordinates. <tt>Matrix<Scalar_, Rows_, Cols_, Options_, MaxRows_,
+ * MaxCols_></tt> is an alias template for <tt>QMatrix<Linear<Rows_, MaxRows_>, Linear<Cols_, MaxCols_>, Scalar_,
+ * Options_></tt>, the dimensionless case, and the parameters below are those of the alias. The default \a Options_ of
+ * a QMatrix is computed from its spaces' sizes as the alias computes it from \a Rows_ and \a Cols_.
+ *
+ * The first three template parameters of %Matrix are required:
  * \tparam Scalar_ Numeric type, e.g. float, double, int or std::complex<float>.
  *                 User defined scalar types are supported as well (see \ref user_defined_scalars "here").
  * \tparam Rows_ Number of rows, or \b Dynamic
@@ -184,17 +196,22 @@ struct traits<Matrix<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>> {
  * \ref TopicStorageOrders
  */
 
-template <typename Scalar_, int Rows_, int Cols_, int Options_, int MaxRows_, int MaxCols_>
-class Matrix : public PlainObjectBase<Matrix<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>> {
+template <typename RowSpace_, typename ColSpace_, typename Scalar_, int Options_>
+class QMatrix : public PlainObjectBase<QMatrix<RowSpace_, ColSpace_, Scalar_, Options_>> {
  public:
   /** \brief Base class typedef.
    * \sa PlainObjectBase
    */
-  using Base = PlainObjectBase<Matrix>;
+  using Base = PlainObjectBase<QMatrix>;
 
   enum { Options = Options_ };
 
-  EIGEN_DENSE_PUBLIC_INTERFACE(Matrix)
+  /** The space of the rows, whose value dimension is RowsAtCompileTime */
+  using RowSpace = RowSpace_;
+  /** The space of the columns, whose value dimension is ColsAtCompileTime */
+  using ColSpace = ColSpace_;
+
+  EIGEN_DENSE_PUBLIC_INTERFACE(QMatrix)
 
   using PlainObject = typename Base::PlainObject;
 
@@ -209,7 +226,7 @@ class Matrix : public PlainObjectBase<Matrix<Scalar_, Rows_, Cols_, Options_, Ma
    *
    * \callgraph
    */
-  EIGEN_DEVICE_FUNC constexpr Matrix& operator=(const Matrix& other) { return Base::_set(other); }
+  EIGEN_DEVICE_FUNC constexpr QMatrix& operator=(const QMatrix& other) { return Base::_set(other); }
 
   /** \internal
    * \brief Copies the value of the expression \a other into \c *this with automatic resizing.
@@ -222,7 +239,7 @@ class Matrix : public PlainObjectBase<Matrix<Scalar_, Rows_, Cols_, Options_, Ma
    * remain row-vectors and vectors remain vectors.
    */
   template <typename OtherDerived>
-  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Matrix& operator=(const DenseBase<OtherDerived>& other) {
+  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE QMatrix& operator=(const DenseBase<OtherDerived>& other) {
     return Base::_set(other);
   }
 
@@ -231,12 +248,12 @@ class Matrix : public PlainObjectBase<Matrix<Scalar_, Rows_, Cols_, Options_, Ma
    * \copydetails DenseBase::operator=(const EigenBase<OtherDerived> &other)
    */
   template <typename OtherDerived>
-  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Matrix& operator=(const EigenBase<OtherDerived>& other) {
+  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE QMatrix& operator=(const EigenBase<OtherDerived>& other) {
     return Base::operator=(other);
   }
 
   template <typename OtherDerived>
-  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Matrix& operator=(const ReturnByValue<OtherDerived>& func) {
+  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE QMatrix& operator=(const ReturnByValue<OtherDerived>& func) {
     return Base::operator=(func);
   }
 
@@ -255,16 +272,16 @@ class Matrix : public PlainObjectBase<Matrix<Scalar_, Rows_, Cols_, Options_, Ma
    * \sa resize(Index,Index)
    */
 #if defined(EIGEN_INITIALIZE_COEFFS)
-  EIGEN_DEVICE_FUNC constexpr Matrix() { EIGEN_INITIALIZE_COEFFS_IF_THAT_OPTION_IS_ENABLED }
+  EIGEN_DEVICE_FUNC constexpr QMatrix() { EIGEN_INITIALIZE_COEFFS_IF_THAT_OPTION_IS_ENABLED }
 #else
-  EIGEN_DEVICE_FUNC constexpr Matrix() = default;
+  EIGEN_DEVICE_FUNC constexpr QMatrix() = default;
 #endif
   /** \brief Move constructor */
-  EIGEN_DEVICE_FUNC constexpr Matrix(Matrix&&) = default;
+  EIGEN_DEVICE_FUNC constexpr QMatrix(QMatrix&&) = default;
   /** \brief Moves the matrix into the other one.
    *
    */
-  EIGEN_DEVICE_FUNC constexpr Matrix& operator=(Matrix&& other) noexcept(
+  EIGEN_DEVICE_FUNC constexpr QMatrix& operator=(QMatrix&& other) noexcept(
       std::is_nothrow_move_assignable<Scalar>::value) {
     this->m_storage = std::move(other.m_storage);
     return *this;
@@ -286,8 +303,8 @@ class Matrix : public PlainObjectBase<Matrix<Scalar_, Rows_, Cols_, Options_, Ma
    * \sa Matrix(const std::initializer_list<std::initializer_list<Scalar>>&)
    */
   template <typename... ArgTypes>
-  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Matrix(const Scalar& a0, const Scalar& a1, const Scalar& a2, const Scalar& a3,
-                                               const ArgTypes&... args)
+  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE QMatrix(const Scalar& a0, const Scalar& a1, const Scalar& a2, const Scalar& a3,
+                                                const ArgTypes&... args)
       : Base(a0, a1, a2, a3, args...) {}
 
   /** \brief Constructs a Matrix and initializes it from the coefficients given as initializer-lists grouped by row.
@@ -313,7 +330,7 @@ class Matrix : public PlainObjectBase<Matrix<Scalar_, Rows_, Cols_, Options_, Ma
    *
    * \sa Matrix(const Scalar& a0, const Scalar& a1, const Scalar& a2,  const Scalar& a3, const ArgTypes&... args)
    */
-  EIGEN_DEVICE_FUNC explicit constexpr EIGEN_STRONG_INLINE Matrix(
+  EIGEN_DEVICE_FUNC explicit constexpr EIGEN_STRONG_INLINE QMatrix(
       const std::initializer_list<std::initializer_list<Scalar>>& list)
       : Base(list) {}
 
@@ -321,18 +338,18 @@ class Matrix : public PlainObjectBase<Matrix<Scalar_, Rows_, Cols_, Options_, Ma
 
   // This constructor is for both 1x1 matrices and dynamic vectors
   template <typename T>
-  EIGEN_DEVICE_FUNC constexpr EIGEN_STRONG_INLINE explicit Matrix(const T& x) {
+  EIGEN_DEVICE_FUNC constexpr EIGEN_STRONG_INLINE explicit QMatrix(const T& x) {
     Base::template _init1<T>(x);
   }
 
   template <typename T0, typename T1>
-  EIGEN_DEVICE_FUNC constexpr EIGEN_STRONG_INLINE Matrix(const T0& x, const T1& y) {
+  EIGEN_DEVICE_FUNC constexpr EIGEN_STRONG_INLINE QMatrix(const T0& x, const T1& y) {
     Base::template _init2<T0, T1>(x, y);
   }
 
 #else
   /** \brief Constructs a fixed-sized matrix initialized with coefficients starting at \a data */
-  EIGEN_DEVICE_FUNC explicit Matrix(const Scalar* data);
+  EIGEN_DEVICE_FUNC explicit QMatrix(const Scalar* data);
 
   /** \brief Constructs a vector or row-vector with given dimension. \only_for_vectors
    *
@@ -346,10 +363,10 @@ class Matrix : public PlainObjectBase<Matrix<Scalar_, Rows_, Cols_, Options_, Ma
    * constructor Matrix() instead, especially when using one of the non standard
    * \c EIGEN_INITIALIZE_MATRICES_BY_{ZERO,\c NAN} macros (see \ref TopicPreprocessorDirectives).
    */
-  EIGEN_STRONG_INLINE explicit Matrix(Index dim);
+  EIGEN_STRONG_INLINE explicit QMatrix(Index dim);
   /** \brief Constructs an initialized 1x1 matrix with the given coefficient
    * \sa Matrix(const Scalar&, const Scalar&, const Scalar&,  const Scalar&, const ArgTypes&...) */
-  Matrix(const Scalar& x);
+  QMatrix(const Scalar& x);
   /** \brief Constructs an uninitialized matrix with \a rows rows and \a cols columns.
    *
    * This is useful for dynamic-size matrices. For fixed-size matrices,
@@ -362,18 +379,18 @@ class Matrix : public PlainObjectBase<Matrix<Scalar_, Rows_, Cols_, Options_, Ma
    * constructor Matrix() instead, especially when using one of the non standard
    * \c EIGEN_INITIALIZE_MATRICES_BY_{ZERO,\c NAN} macros (see \ref TopicPreprocessorDirectives).
    */
-  EIGEN_DEVICE_FUNC Matrix(Index rows, Index cols);
+  EIGEN_DEVICE_FUNC QMatrix(Index rows, Index cols);
 
   /** \brief Constructs an initialized 2D vector with given coefficients
    * \sa Matrix(const Scalar&, const Scalar&, const Scalar&,  const Scalar&, const ArgTypes&...) */
-  Matrix(const Scalar& x, const Scalar& y);
+  QMatrix(const Scalar& x, const Scalar& y);
 #endif  // end EIGEN_PARSED_BY_DOXYGEN
 
   /** \brief Constructs an initialized 3D vector with given coefficients
    * \sa Matrix(const Scalar&, const Scalar&, const Scalar&,  const Scalar&, const ArgTypes&...)
    */
-  EIGEN_DEVICE_FUNC constexpr EIGEN_STRONG_INLINE Matrix(const Scalar& x, const Scalar& y, const Scalar& z) {
-    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Matrix, 3)
+  EIGEN_DEVICE_FUNC constexpr EIGEN_STRONG_INLINE QMatrix(const Scalar& x, const Scalar& y, const Scalar& z) {
+    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(QMatrix, 3)
     m_storage.data()[0] = x;
     m_storage.data()[1] = y;
     m_storage.data()[2] = z;
@@ -381,9 +398,9 @@ class Matrix : public PlainObjectBase<Matrix<Scalar_, Rows_, Cols_, Options_, Ma
   /** \brief Constructs an initialized 4D vector with given coefficients
    * \sa Matrix(const Scalar&, const Scalar&, const Scalar&,  const Scalar&, const ArgTypes&...)
    */
-  EIGEN_DEVICE_FUNC constexpr EIGEN_STRONG_INLINE Matrix(const Scalar& x, const Scalar& y, const Scalar& z,
-                                                         const Scalar& w) {
-    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Matrix, 4)
+  EIGEN_DEVICE_FUNC constexpr EIGEN_STRONG_INLINE QMatrix(const Scalar& x, const Scalar& y, const Scalar& z,
+                                                          const Scalar& w) {
+    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(QMatrix, 4)
     m_storage.data()[0] = x;
     m_storage.data()[1] = y;
     m_storage.data()[2] = z;
@@ -391,7 +408,7 @@ class Matrix : public PlainObjectBase<Matrix<Scalar_, Rows_, Cols_, Options_, Ma
   }
 
   /** \brief Copy constructor */
-  EIGEN_DEVICE_FUNC constexpr Matrix(const Matrix&) = default;
+  EIGEN_DEVICE_FUNC constexpr QMatrix(const QMatrix&) = default;
 
   /** \brief Copy constructor for generic expressions.
    * For coefficient-wise dense expressions, implicit conversion requires compatible scalar types.
@@ -400,7 +417,7 @@ class Matrix : public PlainObjectBase<Matrix<Scalar_, Rows_, Cols_, Options_, Ma
    */
   template <typename OtherDerived,
             std::enable_if_t<internal::is_valid_dense_conversion<Scalar, OtherDerived>::value, int> = 0>
-  EIGEN_DEVICE_FUNC constexpr EIGEN_STRONG_INLINE Matrix(const EigenBase<OtherDerived>& other)
+  EIGEN_DEVICE_FUNC constexpr EIGEN_STRONG_INLINE QMatrix(const EigenBase<OtherDerived>& other)
       : Base(other.derived()) {}
 
   EIGEN_DEVICE_FUNC constexpr Index innerStride() const noexcept { return 1; }
@@ -409,9 +426,9 @@ class Matrix : public PlainObjectBase<Matrix<Scalar_, Rows_, Cols_, Options_, Ma
   /////////// Geometry module ///////////
 
   template <typename OtherDerived>
-  EIGEN_DEVICE_FUNC explicit Matrix(const RotationBase<OtherDerived, ColsAtCompileTime>& r);
+  EIGEN_DEVICE_FUNC explicit QMatrix(const RotationBase<OtherDerived, ColsAtCompileTime>& r);
   template <typename OtherDerived>
-  EIGEN_DEVICE_FUNC Matrix& operator=(const RotationBase<OtherDerived, ColsAtCompileTime>& r);
+  EIGEN_DEVICE_FUNC QMatrix& operator=(const RotationBase<OtherDerived, ColsAtCompileTime>& r);
 
 // allow to extend Matrix outside Eigen
 #ifdef EIGEN_MATRIX_PLUGIN
@@ -535,6 +552,16 @@ using Vector = Matrix<Type, Size, 1>;
  * \brief `1`&times;`Size` vector of type `Type`. */
 template <typename Type, int Size>
 using RowVector = Matrix<Type, 1, Size>;
+
+/** \ingroup matrixtypedefs
+ * \brief A column vector whose coordinates are in \a Space, of type \a Scalar (design/decisions.md [q-names]). */
+template <typename Space, typename Scalar = double>
+using QVector = QMatrix<Space, Linear<1>, Scalar>;
+
+/** \ingroup matrixtypedefs
+ * \brief A row vector whose coordinates are in \a Space, of type \a Scalar. */
+template <typename Space, typename Scalar = double>
+using QRowVector = QMatrix<Linear<1>, Space, Scalar>;
 
 #undef EIGEN_MAKE_TYPEDEFS
 #undef EIGEN_MAKE_FIXED_TYPEDEFS

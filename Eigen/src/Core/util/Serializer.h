@@ -128,13 +128,13 @@ class Serializer<DenseBase<Derived>, void> {
   }
 };
 
-template <typename Scalar, int Rows, int Cols, int Options, int MaxRows, int MaxCols>
-class Serializer<Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols>>
-    : public Serializer<DenseBase<Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols>>> {};
+template <typename RowSpace, typename ColSpace, typename Scalar, int Options>
+class Serializer<QMatrix<RowSpace, ColSpace, Scalar, Options>>
+    : public Serializer<DenseBase<QMatrix<RowSpace, ColSpace, Scalar, Options>>> {};
 
-template <typename Scalar, int Rows, int Cols, int Options, int MaxRows, int MaxCols>
-class Serializer<Array<Scalar, Rows, Cols, Options, MaxRows, MaxCols>>
-    : public Serializer<DenseBase<Array<Scalar, Rows, Cols, Options, MaxRows, MaxCols>>> {};
+template <typename RowSpace, typename ColSpace, typename Scalar, int Options>
+class Serializer<QArray<RowSpace, ColSpace, Scalar, Options>>
+    : public Serializer<DenseBase<QArray<RowSpace, ColSpace, Scalar, Options>>> {};
 
 namespace internal {
 

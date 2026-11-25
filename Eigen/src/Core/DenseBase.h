@@ -181,18 +181,15 @@ class DenseBase
   /** The plain matrix type corresponding to this expression.
    * \sa PlainObject */
   using PlainMatrix =
-      Matrix<typename internal::traits<Derived>::Scalar, internal::traits<Derived>::RowsAtCompileTime,
-             internal::traits<Derived>::ColsAtCompileTime,
-             AutoAlign | (internal::traits<Derived>::Flags & RowMajorBit ? RowMajor : ColMajor),
-             internal::traits<Derived>::MaxRowsAtCompileTime, internal::traits<Derived>::MaxColsAtCompileTime>;
+      QMatrix<typename internal::spaces_of<Derived>::RowSpace, typename internal::spaces_of<Derived>::ColSpace,
+              typename internal::traits<Derived>::Scalar,
+              AutoAlign | (internal::traits<Derived>::Flags & RowMajorBit ? RowMajor : ColMajor)>;
 
   /** The plain array type corresponding to this expression.
    * \sa PlainObject */
-  using PlainArray =
-      Array<typename internal::traits<Derived>::Scalar, internal::traits<Derived>::RowsAtCompileTime,
-            internal::traits<Derived>::ColsAtCompileTime,
-            AutoAlign | (internal::traits<Derived>::Flags & RowMajorBit ? RowMajor : ColMajor),
-            internal::traits<Derived>::MaxRowsAtCompileTime, internal::traits<Derived>::MaxColsAtCompileTime>;
+  using PlainArray = QArray<typename internal::spaces_of<Derived>::RowSpace,
+                            typename internal::spaces_of<Derived>::ColSpace, typename internal::traits<Derived>::Scalar,
+                            AutoAlign | (internal::traits<Derived>::Flags & RowMajorBit ? RowMajor : ColMajor)>;
 
   /** \brief The plain matrix or array type corresponding to this expression.
    *

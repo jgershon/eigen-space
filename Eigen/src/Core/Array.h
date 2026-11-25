@@ -23,18 +23,22 @@ using is_valid_array_conversion = std::conditional_t<std::is_base_of<DenseBase<O
                                                      is_valid_dense_conversion<Scalar, OtherDerived>,
                                                      std::is_convertible<typename OtherDerived::Scalar, Scalar>>;
 
-template <typename Scalar_, int Rows_, int Cols_, int Options_, int MaxRows_, int MaxCols_>
-struct traits<Array<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>>
-    : traits<Matrix<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>> {
+template <typename RowSpace_, typename ColSpace_, typename Scalar_, int Options_>
+struct traits<QArray<RowSpace_, ColSpace_, Scalar_, Options_>>
+    : traits<QMatrix<RowSpace_, ColSpace_, Scalar_, Options_>> {
   using XprKind = ArrayXpr;
-  using XprBase = ArrayBase<Array<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>>;
+  using XprBase = ArrayBase<QArray<RowSpace_, ColSpace_, Scalar_, Options_>>;
 };
 }  // namespace internal
 
-/** \class Array
+/** \class QArray
  * \ingroup Core_Module
  *
  * \brief General-purpose arrays with easy API for coefficient-wise operations
+ *
+ * The class itself is <tt>QArray<RowSpace_, ColSpace_, Scalar_ = double, Options_></tt>, shaped by spaces as QMatrix
+ * is, and <tt>Array<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_></tt> is an alias template for it on
+ * dimensionless Linear spaces (design/decisions.md [q-names]).
  *
  * The %Array class is very similar to the Matrix class. It provides
  * general-purpose one- and two-dimensional arrays. The difference between the
@@ -51,13 +55,18 @@ struct traits<Array<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>>
  *
  * \sa \blank \ref TutorialArrayClass, \ref TopicClassHierarchy
  */
-template <typename Scalar_, int Rows_, int Cols_, int Options_, int MaxRows_, int MaxCols_>
-class Array : public PlainObjectBase<Array<Scalar_, Rows_, Cols_, Options_, MaxRows_, MaxCols_>> {
+template <typename RowSpace_, typename ColSpace_, typename Scalar_, int Options_>
+class QArray : public PlainObjectBase<QArray<RowSpace_, ColSpace_, Scalar_, Options_>> {
  public:
-  using Base = PlainObjectBase<Array>;
-  EIGEN_DENSE_PUBLIC_INTERFACE(Array)
+  using Base = PlainObjectBase<QArray>;
+  EIGEN_DENSE_PUBLIC_INTERFACE(QArray)
 
   enum { Options = Options_ };
+
+  /** The space of the rows, whose value dimension is RowsAtCompileTime */
+  using RowSpace = RowSpace_;
+  /** The space of the columns, whose value dimension is ColsAtCompileTime */
+  using ColSpace = ColSpace_;
   using PlainObject = typename Base::PlainObject;
 
  protected:
@@ -81,14 +90,14 @@ class Array : public PlainObjectBase<Array<Scalar_, Rows_, Cols_, Options_, MaxR
    * remain row-vectors and vectors remain vectors.
    */
   template <typename OtherDerived>
-  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Array& operator=(const DenseBase<OtherDerived>& other) {
+  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE QArray& operator=(const DenseBase<OtherDerived>& other) {
     return Base::_set(other);
   }
 
   /** Set all the entries to \a value.
    * \sa DenseBase::setConstant(), DenseBase::fill()
    */
-  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Array& operator=(const Scalar& value) {
+  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE QArray& operator=(const Scalar& value) {
     Base::setConstant(value);
     return *this;
   }
@@ -101,7 +110,7 @@ class Array : public PlainObjectBase<Array<Scalar_, Rows_, Cols_, Options_, MaxR
    *
    * \callgraph
    */
-  EIGEN_DEVICE_FUNC constexpr EIGEN_STRONG_INLINE Array& operator=(const Array& other) { return Base::_set(other); }
+  EIGEN_DEVICE_FUNC constexpr EIGEN_STRONG_INLINE QArray& operator=(const QArray& other) { return Base::_set(other); }
 
   /** Default constructor.
    *
@@ -118,13 +127,14 @@ class Array : public PlainObjectBase<Array<Scalar_, Rows_, Cols_, Options_, MaxR
    * \sa resize(Index,Index)
    */
 #ifdef EIGEN_INITIALIZE_COEFFS
-  EIGEN_DEVICE_FUNC constexpr Array() { EIGEN_INITIALIZE_COEFFS_IF_THAT_OPTION_IS_ENABLED }
+  EIGEN_DEVICE_FUNC constexpr QArray() { EIGEN_INITIALIZE_COEFFS_IF_THAT_OPTION_IS_ENABLED }
 #else
-  EIGEN_DEVICE_FUNC constexpr Array() = default;
+  EIGEN_DEVICE_FUNC constexpr QArray() = default;
 #endif
   /** \brief Move constructor */
-  EIGEN_DEVICE_FUNC constexpr Array(Array&&) = default;
-  EIGEN_DEVICE_FUNC constexpr Array& operator=(Array&& other) noexcept(std::is_nothrow_move_assignable<Scalar>::value) {
+  EIGEN_DEVICE_FUNC constexpr QArray(QArray&&) = default;
+  EIGEN_DEVICE_FUNC constexpr QArray& operator=(QArray&& other) noexcept(
+      std::is_nothrow_move_assignable<Scalar>::value) {
     this->m_storage = std::move(other.m_storage);
     return *this;
   }
@@ -146,8 +156,8 @@ class Array : public PlainObjectBase<Array<Scalar_, Rows_, Cols_, Options_, MaxR
    * \sa Array(const Scalar&), Array(const Scalar&,const Scalar&)
    */
   template <typename... ArgTypes>
-  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Array(const Scalar& a0, const Scalar& a1, const Scalar& a2, const Scalar& a3,
-                                              const ArgTypes&... args)
+  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE QArray(const Scalar& a0, const Scalar& a1, const Scalar& a2, const Scalar& a3,
+                                               const ArgTypes&... args)
       : Base(a0, a1, a2, a3, args...) {}
 
   /** \brief Constructs an array and initializes it from the coefficients given as initializer-lists grouped by row.
@@ -172,48 +182,48 @@ class Array : public PlainObjectBase<Array<Scalar_, Rows_, Cols_, Options_, MaxR
    *
    * \sa  Array(const Scalar& a0, const Scalar& a1, const Scalar& a2, const Scalar& a3, const ArgTypes&... args)
    */
-  EIGEN_DEVICE_FUNC constexpr Array(const std::initializer_list<std::initializer_list<Scalar>>& list) : Base(list) {}
+  EIGEN_DEVICE_FUNC constexpr QArray(const std::initializer_list<std::initializer_list<Scalar>>& list) : Base(list) {}
 
 #ifndef EIGEN_PARSED_BY_DOXYGEN
   template <typename T>
-  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE explicit Array(const T& x) {
+  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE explicit QArray(const T& x) {
     Base::template _init1<T>(x);
   }
 
   template <typename T0, typename T1>
-  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Array(const T0& val0, const T1& val1) {
+  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE QArray(const T0& val0, const T1& val1) {
     this->template _init2<T0, T1>(val0, val1);
   }
 
 #else
   /** \brief Constructs a fixed-sized array initialized with coefficients starting at \a data */
-  EIGEN_DEVICE_FUNC explicit Array(const Scalar* data);
+  EIGEN_DEVICE_FUNC explicit QArray(const Scalar* data);
   /** Constructs a vector or row-vector with given dimension. \only_for_vectors
    *
    * Note that this is only useful for dynamic-size vectors. For fixed-size vectors,
    * it is redundant to pass the dimension here, so it makes more sense to use the default
    * constructor Array() instead.
    */
-  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE explicit Array(Index dim);
+  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE explicit QArray(Index dim);
   /** constructs an initialized 1x1 Array with the given coefficient
    * \sa Array(const Scalar& a0, const Scalar& a1, const Scalar& a2, const Scalar& a3, const ArgTypes&... args) */
-  Array(const Scalar& value);
+  QArray(const Scalar& value);
   /** constructs an uninitialized array with \a rows rows and \a cols columns.
    *
    * This is useful for dynamic-size arrays. For fixed-size arrays,
    * it is redundant to pass these parameters, so one should use the default constructor
    * Array() instead. */
-  Array(Index rows, Index cols);
+  QArray(Index rows, Index cols);
   /** constructs an initialized 2D vector with given coefficients
    * \sa Array(const Scalar& a0, const Scalar& a1, const Scalar& a2, const Scalar& a3, const ArgTypes&... args) */
-  Array(const Scalar& val0, const Scalar& val1);
+  QArray(const Scalar& val0, const Scalar& val1);
 #endif  // end EIGEN_PARSED_BY_DOXYGEN
 
   /** constructs an initialized 3D vector with given coefficients
    * \sa Array(const Scalar& a0, const Scalar& a1, const Scalar& a2, const Scalar& a3, const ArgTypes&... args)
    */
-  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Array(const Scalar& val0, const Scalar& val1, const Scalar& val2) {
-    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Array, 3)
+  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE QArray(const Scalar& val0, const Scalar& val1, const Scalar& val2) {
+    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(QArray, 3)
     m_storage.data()[0] = val0;
     m_storage.data()[1] = val1;
     m_storage.data()[2] = val2;
@@ -221,9 +231,9 @@ class Array : public PlainObjectBase<Array<Scalar_, Rows_, Cols_, Options_, MaxR
   /** constructs an initialized 4D vector with given coefficients
    * \sa Array(const Scalar& a0, const Scalar& a1, const Scalar& a2, const Scalar& a3, const ArgTypes&... args)
    */
-  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Array(const Scalar& val0, const Scalar& val1, const Scalar& val2,
-                                              const Scalar& val3) {
-    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(Array, 4)
+  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE QArray(const Scalar& val0, const Scalar& val1, const Scalar& val2,
+                                               const Scalar& val3) {
+    EIGEN_STATIC_ASSERT_VECTOR_SPECIFIC_SIZE(QArray, 4)
     m_storage.data()[0] = val0;
     m_storage.data()[1] = val1;
     m_storage.data()[2] = val2;
@@ -231,7 +241,7 @@ class Array : public PlainObjectBase<Array<Scalar_, Rows_, Cols_, Options_, MaxR
   }
 
   /** Copy constructor */
-  EIGEN_DEVICE_FUNC constexpr Array(const Array&) = default;
+  EIGEN_DEVICE_FUNC constexpr QArray(const QArray&) = default;
 
  private:
   struct PrivateType {};
@@ -243,14 +253,15 @@ class Array : public PlainObjectBase<Array<Scalar_, Rows_, Cols_, Options_, MaxR
    */
   template <typename OtherDerived,
             std::enable_if_t<internal::is_valid_array_conversion<Scalar, OtherDerived>::value, int> = 0>
-  EIGEN_DEVICE_FUNC constexpr EIGEN_STRONG_INLINE Array(const EigenBase<OtherDerived>& other) : Base(other.derived()) {}
+  EIGEN_DEVICE_FUNC constexpr EIGEN_STRONG_INLINE QArray(const EigenBase<OtherDerived>& other)
+      : Base(other.derived()) {}
 
   template <typename OtherDerived>
   EIGEN_DEPRECATED_WITH_REASON("Omit the implementation-only second argument.")
-  EIGEN_DEVICE_FUNC constexpr EIGEN_STRONG_INLINE Array(
+  EIGEN_DEVICE_FUNC constexpr EIGEN_STRONG_INLINE QArray(
       const EigenBase<OtherDerived>& other,
       std::enable_if_t<internal::is_valid_array_conversion<Scalar, OtherDerived>::value, PrivateType>)
-      : Array(other) {}
+      : QArray(other) {}
 
   EIGEN_DEVICE_FUNC constexpr Index innerStride() const noexcept { return 1; }
   EIGEN_DEVICE_FUNC constexpr Index outerStride() const noexcept { return this->innerSize(); }
@@ -259,12 +270,12 @@ class Array : public PlainObjectBase<Array<Scalar_, Rows_, Cols_, Options_, MaxR
 #include EIGEN_ARRAY_PLUGIN
 #endif
   template <typename OtherDerived>
-  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Array& operator=(const EigenBase<OtherDerived>& other) {
+  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE QArray& operator=(const EigenBase<OtherDerived>& other) {
     return Base::operator=(other);
   }
 
   template <typename OtherDerived>
-  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE Array& operator=(const ReturnByValue<OtherDerived>& func) {
+  EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE QArray& operator=(const ReturnByValue<OtherDerived>& func) {
     return Base::operator=(func);
   }
 
