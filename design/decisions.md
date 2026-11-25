@@ -283,8 +283,9 @@ types. Rejecting different units: mp-units adds them. Converting into the left o
 nearest common base of two tags, which mp-units' hierarchy of specs would suggest: C++20 cannot list
 a type's bases, so it would hold only for tags that name a parent; recorded for later.
 
-**Where.** `Eigen/src/Core/Spaces/Rules.h`, `Eigen/src/Units/Rules.h`, `Conversion.h`;
-`failtest/space_rule_*.cpp`, `failtest/units_*.cpp`; `test/units.cpp`.
+**Where.** `Eigen/src/Core/Spaces/Rules.h`, with the conversion applied in `AssignEvaluator.h`
+(assignment), `GeneralProduct.h` (`operator*`), and `MatrixBase.h` (`in<>()`); the mp-units side in
+`Eigen/src/Units/Backend.h`; `failtest/space_rule_*.cpp`, `failtest/units_*.cpp`; `test/units.cpp`.
 
 ## additive-groups
 
@@ -326,7 +327,7 @@ the same split keeps one rule for real and complex matrices.
 
 **Rejected.** A complex unit, or a separate rule for complex matrices.
 
-**Where.** `Eigen/src/Units/Rules.h`; `test/units.cpp`.
+**Where.** `Eigen/src/Core/Spaces/Rules.h`, `Eigen/src/Units/Backend.h`; `test/units.cpp`.
 
 ## typed-blocks
 

@@ -69,10 +69,16 @@ struct units_backend {
   /** Whether \a q is a plain number: of the kind dimensionless, not merely of dimension one, so that an angle in
    * radians is not, as mp-units does not add one to a number; and in a unit of magnitude one, so that a percentage
    * is not either. */
+  /** Whether \a q is of the dimensionless kind, in a unit of any magnitude. */
+  template <typename A>
+  static consteval bool isDimensionlessKind(A q) {
+    return std::is_same_v<decltype(mp_units::get_kind(specOf(q))),
+                          decltype(mp_units::get_kind(mp_units::dimensionless))>;
+  }
+
   template <typename A>
   static consteval bool isDimensionless(A q) {
-    if constexpr (!std::is_same_v<decltype(mp_units::get_kind(specOf(q))),
-                                  decltype(mp_units::get_kind(mp_units::dimensionless))>) {
+    if constexpr (!isDimensionlessKind(A{})) {
       return false;
     } else if constexpr (isBound(A{})) {
       return equivalent(unitOf(q), mp_units::one);

@@ -220,8 +220,11 @@ class Product
                                internal::product_type<Lhs, Rhs>::value>::ret>::Base;
   EIGEN_GENERIC_PUBLIC_INTERFACE(Product)
   static_assert(internal::product_spaces<Lhs, Rhs>::value,
-                "the column space of a product's left operand must be the dual of its right operand's row space "
-                "(design/decisions.md [dual-spaces])");
+                "the inner coordinates of a product must multiply to one dimension: the left operand's columns dual "
+                "to the right operand's rows, up to a unit (design/decisions.md [dual-spaces])");
+  static_assert(!internal::product_spaces<Lhs, Rhs>::converts,
+                "the inner coordinates of this product differ in unit; form it with operator*, which converts "
+                "(design/decisions.md [heterogeneous-results])");
 
   using LhsNested = typename internal::ref_selector<Lhs>::type;
   using RhsNested = typename internal::ref_selector<Rhs>::type;

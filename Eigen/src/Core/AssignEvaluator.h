@@ -1058,10 +1058,20 @@ EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE constexpr void call_assignment_no_alias(Ds
   EIGEN_STATIC_ASSERT_SAME_MATRIX_SIZE(ActualDstTypeCleaned, Src)
   EIGEN_CHECK_BINARY_COMPATIBILITY(Func, typename ActualDstTypeCleaned::Scalar, typename Src::Scalar);
   static_assert(internal::assignment_spaces<Func, ActualDstTypeCleaned, Src>::value,
-                "an assignment needs the destination and the source in equal spaces, and a scaling by "
-                "a dimensionless factor (design/decisions.md [dual-spaces])");
+                "an assignment converts the source into the destination's spaces only where mp-units converts a "
+                "quantity implicitly, otherwise convert with in<>(); a scaling takes a dimensionless factor "
+                "(design/decisions.md [heterogeneous-results])");
 
-  Assignment<ActualDstTypeCleaned, Src, Func>::run(actualDst, src, func);
+  if constexpr (internal::assignment_spaces<Func, ActualDstTypeCleaned, Src>::converts) {
+    // The source converts into the destination's units, as mp-units converts a quantity [heterogeneous-results].
+    using DstRow = typename internal::spaces_of<ActualDstTypeCleaned>::RowSpace;
+    using DstCol = typename internal::spaces_of<ActualDstTypeCleaned>::ColSpace;
+    using Converted = decltype(internal::convertSpaces<DstRow, DstCol>(src));
+    Assignment<ActualDstTypeCleaned, Converted, Func>::run(actualDst, internal::convertSpaces<DstRow, DstCol>(src),
+                                                           func);
+  } else {
+    Assignment<ActualDstTypeCleaned, Src, Func>::run(actualDst, src, func);
+  }
 }
 
 template <typename Dst, typename Src, typename Func>

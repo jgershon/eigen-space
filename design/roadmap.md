@@ -56,11 +56,17 @@ mp-units' own, with conversion, and coordinate arithmetic is checked against the
       tests and failtests on mp-units' units, in place of the test unit types. Sums and products
       compare runs of compatible quantities in equivalent units, so metres as a unit and as a
       reference agree and nothing yet converts.
-- [ ] Conversion: sums and differences in the common unit, assignment and construction converting
+- [x] Conversion: sums and differences in the common unit, assignment and construction converting
       into the destination, a product's inner coordinates converted to one factor c, and
-      `in<>()`; no conversion generated where the units agree.
-- [ ] Results of operands with different tags: shared tags kept and rebound, the untagged leaves of
-      the common quantities otherwise.
+      `in<>()`; no conversion generated where the units agree. Two run lists are refined to one
+      partition before they are compared, so blocks that fall differently still match. A
+      conversion is a coefficient-wise product with a nullary of row and column factors, relabeled;
+      a converting sum is evaluated as the sum of its converted operands, and `operator*` converts
+      the right operand. Not yet: a conversion across a repeated block of several units, and the
+      check that an integer `Scalar` converts by an integral factor.
+- [x] Results of operands with different tags: shared tags kept and rebound, the untagged leaves of
+      the common quantities otherwise; a product's row space scaled by its inner unit keeps its tags
+      for a ratio of units and drops them for a quantity with a dimension.
 - [ ] Coordinate arithmetic on groups under addition only: `Group.h` from EmrysFilter's
       `groups-prototype` (`LieGroup`, the classification, `compose()`, `inverse()`, `identity()`,
       `exp()`, `log()`), `UnitQuaternion`'s group members, and failtests for a difference of

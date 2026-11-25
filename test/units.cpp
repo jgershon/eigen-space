@@ -10,11 +10,13 @@
 // units of their spaces; and a covariance prediction on typed matrices has the values of the plain one.
 
 // Before main.h, whose forbidden-identifier macros (I, min, max) would break mp-units' headers.
+#include <mp-units/systems/international.h>
 #include <mp-units/systems/isq.h>
 #include <mp-units/systems/si.h>
 
 #include "main.h"
 
+#include <Eigen/Geometry>
 #include <Eigen/Units>
 
 #include <type_traits>
@@ -137,6 +139,81 @@ void space_rules_type_sums_products_and_transposes() {
                    (fPlain * fPlain.transpose() + Matrix<double, 6, 6>::Identity()));
 }
 
+namespace ft = mp_units::international;
+
+constexpr double footInMetres = 0.3048;
+
+using PositionM = In<Position, si::metre>;
+using PositionFt = In<Position, ft::foot>;
+using StateFt = In<Composite<Position, Velocity>, ft::foot, ft::foot / si::second>;
+using StateMixed = In<Composite<Position, Velocity>, ft::foot, metrePerSecond>;
+
+// Assignment converts into the destination's units, as quantity<si::metre> q = 3 * ft does; .in<>() converts
+// explicitly; a sum is in the common unit whichever operand comes first.
+void conversion_follows_mp_units() {
+  QVector<PositionFt> feet(1.0, 2.0, 3.0);
+  const QVector<PositionM> metres = feet;
+  VERIFY_IS_APPROX((Map<const Vector3d>(metres.data())), (footInMetres * Vector3d(1.0, 2.0, 3.0)));
+  const QVector<PositionM> again = feet.in<PositionM>();
+  VERIFY_IS_APPROX((Map<const Vector3d>(again.data())), (Map<const Vector3d>(metres.data())));
+  QVector<PositionM> sum = metres;
+  sum += feet;
+  VERIFY_IS_APPROX((Map<const Vector3d>(sum.data())), (2.0 * Map<const Vector3d>(metres.data())));
+
+  static_assert(std::is_same_v<decltype(metres + feet)::PlainObject, decltype(feet + metres)::PlainObject>);
+  static_assert(internal::IsBoundSpace<RowSpaceOf<decltype(metres + feet)>>);  // the tag is shared, so it stays
+  const QVector<PositionM> mixedSum = metres + feet;
+  VERIFY_IS_APPROX((Map<const Vector3d>(mixedSum.data())), (2.0 * Map<const Vector3d>(metres.data())));
+  // Where the operands' tags differ, the common space is untagged.
+  using Untagged = QVector<QLinear<ft::foot, 3>>;
+  static_assert(!internal::IsBoundSpace<RowSpaceOf<decltype(metres + Untagged())>>);
+}
+
+// A covariance converts entry by entry, (i, j) by the factors of row i and column j, and a prediction in feet has the
+// values of the same prediction in metres, converted.
+void covariance_prediction_in_feet_and_metres() {
+  using TransitionFt = QMatrix<StateFt, Dual<StateFt>>;
+  using CovarianceFt = QMatrix<StateFt, StateFt>;
+  TransitionFt f = TransitionFt::Identity();
+  f.topRightCorner<3, 3>().diagonal().setConstant(0.1);
+  CovarianceFt p;
+  for (Index i = 0; i < 6; ++i)
+    for (Index j = 0; j < 6; ++j) p(i, j) = 1.0 / double(1 + i + j);
+
+  const Covariance pMetres = p;
+  VERIFY_IS_APPROX(pMetres(0, 1), footInMetres * footInMetres * p(0, 1));
+  VERIFY_IS_APPROX(pMetres(4, 5), footInMetres * footInMetres * p(4, 5));
+  const Transition fMetres = f;  // dimensionless position-position block, seconds in the velocity column
+  VERIFY_IS_APPROX(fMetres(0, 3), f(0, 3));
+
+  const CovarianceFt qFeet = f * p * f.transpose() + p;
+  const Covariance qMetres = fMetres * pMetres * fMetres.transpose() + pMetres;
+  const Covariance qConverted = qFeet;
+  VERIFY_IS_APPROX((Map<const Matrix<double, 6, 6>>(qConverted.data())),
+                   (Map<const Matrix<double, 6, 6>>(qMetres.data())));
+}
+
+// A product whose inner coordinates differ in unit converts the right operand's rows; a plain matrix times a
+// position in metres is in metres, untagged, since the plain rows gain a dimension.
+void products_convert_their_inner_coordinates() {
+  Transition f = Transition::Identity();
+  f.topRightCorner<3, 3>().diagonal().setConstant(0.1);
+  QVector<StateMixed> x;
+  x << 1.0, 2.0, 3.0, 4.0, 5.0, 6.0;
+  const QVector<State> xMetres = x;
+  const QVector<State> direct = f * x;
+  const QVector<State> converted = f * xMetres;
+  VERIFY_IS_APPROX((Map<const Matrix<double, 6, 1>>(direct.data())),
+                   (Map<const Matrix<double, 6, 1>>(converted.data())));
+
+  const Matrix3d rotation = AngleAxisd(0.3, Vector3d::UnitZ()).toRotationMatrix();
+  const QVector<PositionM> position(1.0, 2.0, 3.0);
+  using Rotated = decltype(rotation * position);
+  static_assert(!internal::IsBoundSpace<RowSpaceOf<Rotated>> && internal::isBoundSpace<RowSpaceOf<Rotated>>());
+  const QVector<PositionM> rotated = rotation * position;
+  VERIFY_IS_APPROX((Map<const Vector3d>(rotated.data())), (rotation * Vector3d(1.0, 2.0, 3.0)));
+}
+
 }  // namespace
 
 EIGEN_DECLARE_TEST(units) {
@@ -144,4 +221,7 @@ EIGEN_DECLARE_TEST(units) {
   CALL_SUBTEST_1(typed_plain_objects_keep_their_spaces());
   CALL_SUBTEST_1(space_rules_compare_units_not_types());
   CALL_SUBTEST_1(space_rules_type_sums_products_and_transposes());
+  CALL_SUBTEST_1(conversion_follows_mp_units());
+  CALL_SUBTEST_1(covariance_prediction_in_feet_and_metres());
+  CALL_SUBTEST_1(products_convert_their_inner_coordinates());
 }

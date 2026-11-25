@@ -110,6 +110,57 @@ consteval bool alikeQuantities(const A& a, const B& b) {
   }
 }
 
+/** \internal Whether a value of \a from converts into \a to implicitly, as mp-units converts a quantity. */
+template <typename A, typename B>
+consteval bool assignableQuantity(const A& from, const B& to) {
+  if constexpr (IsEigenDimensionless<A> && IsEigenDimensionless<B>) {
+    return true;
+  } else {
+    return units_backend_for<A, B>::assignable(from, to);
+  }
+}
+
+/** \internal The quantity a value of \a a and one of \a b add in: the common spec in the common unit. */
+template <typename A, typename B>
+consteval auto commonQuantity(const A& a, const B& b) {
+  if constexpr (IsEigenDimensionless<A> && IsEigenDimensionless<B>) {
+    return a;
+  } else {
+    return units_backend_for<A, B>::common(a, b);
+  }
+}
+
+/** \internal The number a coordinate measuring \a from is multiplied by to measure \a to. */
+template <typename A, typename B>
+consteval double conversionFactor(const A& from, const B& to) {
+  if constexpr (IsEigenDimensionless<A> && IsEigenDimensionless<B>) {
+    return 1.0;
+  } else {
+    return double(units_backend_for<A, B>::factor(from, to));
+  }
+}
+
+/** \internal The quantity of a product of a coordinate measuring \a a and one measuring \a b. */
+template <typename A, typename B>
+consteval auto quantityProduct(const A& a, const B& b) {
+  if constexpr (IsEigenDimensionless<A> && IsEigenDimensionless<B>) {
+    return a;
+  } else {
+    return units_backend_for<A, B>::product(a, b);
+  }
+}
+
+/** \internal Whether \a q is of the dimensionless kind, in any unit: a ratio such as m/ft, which converts a value
+ * without changing what it measures. */
+template <typename Q>
+consteval bool isDimensionlessKind(const Q& q) {
+  if constexpr (IsEigenDimensionless<Q>) {
+    return true;
+  } else {
+    return units_backend<Q>::isDimensionlessKind(q);
+  }
+}
+
 /** \internal The quantity of the dual coordinate: \a q inverted. */
 template <typename Q>
 consteval auto inverseQuantity(const Q& q) {

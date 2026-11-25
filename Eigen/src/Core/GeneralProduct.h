@@ -638,8 +638,7 @@ struct gemv_dense_selector<OnTheRight, RowMajor, false> {
  */
 template <typename Derived>
 template <typename OtherDerived>
-EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE const Product<Derived, OtherDerived> MatrixBase<Derived>::operator*(
-    const MatrixBase<OtherDerived>& other) const {
+EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE auto MatrixBase<Derived>::operator*(const MatrixBase<OtherDerived>& other) const {
   // A note regarding the function declaration: In MSVC, this function will sometimes
   // not be inlined since DenseStorage is an unwindable object for dynamic
   // matrices and product types are holding a member to store the result.
@@ -663,7 +662,14 @@ EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE const Product<Derived, OtherDerived> Matri
   internal::product_type<Derived, OtherDerived>::debug();
 #endif
 
-  return Product<Derived, OtherDerived>(derived(), other.derived());
+  if constexpr (internal::product_spaces<Derived, OtherDerived>::converts) {
+    // The inner coordinates differ in unit: the right operand's rows convert to one (design/decisions.md
+    // [heterogeneous-results]).
+    using Conversion = internal::product_rhs_conversion<Derived, OtherDerived>;
+    return Product<Derived, typename Conversion::type>(derived(), Conversion::convert(other.derived()));
+  } else {
+    return Product<Derived, OtherDerived>(derived(), other.derived());
+  }
 }
 
 /** \returns an expression of the matrix product of \c *this and \a other without implicit evaluation.

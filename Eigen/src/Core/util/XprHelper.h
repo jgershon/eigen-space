@@ -492,6 +492,10 @@ template <typename BinaryOp, typename Lhs, typename Rhs>
 struct binary_op_spaces;
 template <typename Func, typename Dst, typename Src>
 struct assignment_spaces;
+template <typename ToRow, typename ToCol, typename Xpr>
+auto convertSpaces(const Xpr& xpr);
+template <typename Lhs, typename Rhs>
+struct product_rhs_conversion;
 
 /* plain_matrix_type : the difference from eval is that plain_matrix_type is always a plain matrix type,
  * whereas eval is a const reference in the case of a matrix
