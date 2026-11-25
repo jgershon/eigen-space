@@ -235,6 +235,14 @@ inline constexpr bool is_dimensionless_space = isDimensionlessSpace<S>();
 template <int N, int M>
 inline constexpr bool is_dimensionless_space<QLinear<dimensionless, N, M>> = true;
 
+/** \internal Whether \a S is plain: dimensionless and a group under addition [additive-groups], so that the rules have
+ * nothing to check; immediate for a plain Linear. A vector of unit quaternions is dimensionless and not plain. */
+template <typename S>
+inline constexpr bool is_plain_space = isDimensionlessSpace<S>() && isAdditiveGroup<S>();
+
+template <int N, int M>
+inline constexpr bool is_plain_space<QLinear<dimensionless, N, M>> = true;
+
 /** \internal Whether every leaf of \a S has a unit, as a matrix's spaces need; immediate for a plain Linear. */
 template <typename S>
 struct space_is_bound : std::bool_constant<isBoundSpace<S>()> {};
@@ -461,10 +469,21 @@ template <typename T>
 inline constexpr bool has_typed_spaces = !(is_dimensionless_space<typename spaces_of<T>::RowSpace> &&
                                            is_dimensionless_space<typename spaces_of<T>::ColSpace>);
 
+/** \internal Whether an expression of type \a T has spaces the rules check: a unit, or a space that is not a group
+ * under addition. */
+template <typename T>
+inline constexpr bool has_ruled_spaces =
+    !(is_plain_space<typename spaces_of<T>::RowSpace> && is_plain_space<typename spaces_of<T>::ColSpace>);
+
+/** \internal Whether both spaces of an expression of type \a T are groups under addition [additive-groups]. */
+template <typename T>
+inline constexpr bool has_additive_spaces =
+    isAdditiveGroup<typename spaces_of<T>::RowSpace>() && isAdditiveGroup<typename spaces_of<T>::ColSpace>();
+
 /** \internal The rule of a sum or difference of expressions in the spaces of \a A and \a B: whether they are
  * compatible, the common spaces of the result, and whether an operand converts into them. Immediate where neither
  * operand has a unit. */
-template <typename A, typename B, bool Untyped = !has_typed_spaces<A> && !has_typed_spaces<B>>
+template <typename A, typename B, bool Untyped = !has_ruled_spaces<A> && !has_ruled_spaces<B>>
 struct sum_spaces {
   static constexpr bool value = true;
   static constexpr bool converts = false;
@@ -478,7 +497,8 @@ struct sum_spaces<A, B, false> {
   using AC = typename spaces_of<A>::ColSpace;
   using BR = typename spaces_of<B>::RowSpace;
   using BC = typename spaces_of<B>::ColSpace;
-  static constexpr bool value = spaces_equal<AR, BR>::value && spaces_equal<AC, BC>::value;
+  static constexpr bool additive = has_additive_spaces<A> && has_additive_spaces<B>;
+  static constexpr bool value = additive && spaces_equal<AR, BR>::value && spaces_equal<AC, BC>::value;
   using RowSpace = typename std::conditional_t<value, CommonSpaceOf<AR, BR>, std::type_identity<AR>>::type;
   using ColSpace = typename std::conditional_t<value, CommonSpaceOf<AC, BC>, std::type_identity<AC>>::type;
   static constexpr bool converts = value && !(spaces_alike<AR, RowSpace>::value && spaces_alike<BR, RowSpace>::value &&
@@ -518,9 +538,10 @@ struct binary_op_spaces {
   // The typed operand's spaces: the left one's unless only the right one is typed.
   using Typed = std::conditional_t<combination == unit_combination::product && !has_typed_spaces<Lhs>, Rhs, Lhs>;
   struct Scaling {
-    static constexpr bool value = combination == unit_combination::product
-                                      ? !has_typed_spaces<Lhs> || !has_typed_spaces<Rhs>
-                                      : !has_typed_spaces<Rhs>;
+    static constexpr bool value =
+        (combination == unit_combination::product ? !has_typed_spaces<Lhs> || !has_typed_spaces<Rhs>
+                                                  : !has_typed_spaces<Rhs>) &&
+        has_additive_spaces<Lhs> && has_additive_spaces<Rhs>;
     static constexpr bool converts = false;
     using RowSpace = typename spaces_of<Typed>::RowSpace;
     using ColSpace = typename spaces_of<Typed>::ColSpace;
@@ -532,7 +553,14 @@ struct binary_op_spaces {
   using ColSpace = typename Rule::ColSpace;
 };
 
-template <typename Func, typename Dst, typename Src, bool Untyped = !has_typed_spaces<Dst> && !has_typed_spaces<Src>>
+template <typename Func>
+struct is_accumulating_assignment : std::false_type {};
+template <typename A, typename B>
+struct is_accumulating_assignment<add_assign_op<A, B>> : std::true_type {};
+template <typename A, typename B>
+struct is_accumulating_assignment<sub_assign_op<A, B>> : std::true_type {};
+
+template <typename Func, typename Dst, typename Src, bool Untyped = !has_ruled_spaces<Dst> && !has_ruled_spaces<Src>>
 struct assignment_spaces_impl {
   static constexpr bool value = true;
   static constexpr bool converts = false;
@@ -545,10 +573,13 @@ struct assignment_spaces_impl<Func, Dst, Src, false> {
   using SR = typename spaces_of<Src>::RowSpace;
   using SC = typename spaces_of<Src>::ColSpace;
   static constexpr bool equal = assign_op_unit_combination<Func>::value == unit_combination::equal;
+  // A copy needs no group; +=, -=, *=, and /= act on coordinates, so they need one under addition [additive-groups].
+  static constexpr bool additive = !(is_accumulating_assignment<Func>::value || !equal) || has_additive_spaces<Dst>;
   static constexpr bool value =
-      equal ? std::disjunction<std::is_same<DR, SR>, AllPairs<AssignablePred, SpacePairs<SR, DR>>>::value &&
-                  std::disjunction<std::is_same<DC, SC>, AllPairs<AssignablePred, SpacePairs<SC, DC>>>::value
-            : !has_typed_spaces<Src>;
+      additive &&
+      (equal ? std::disjunction<std::is_same<DR, SR>, AllPairs<AssignablePred, SpacePairs<SR, DR>>>::value &&
+                   std::disjunction<std::is_same<DC, SC>, AllPairs<AssignablePred, SpacePairs<SC, DC>>>::value
+             : !has_typed_spaces<Src>);
   static constexpr bool converts = equal && value && !(spaces_alike<SR, DR>::value && spaces_alike<SC, DC>::value);
 };
 
@@ -608,7 +639,7 @@ struct InnerCommon<std::tuple<First, Rest...>> {
  * a unit. */
 template <typename Lhs, typename Rhs, typename LhsInner = typename spaces_of<Lhs>::ColSpace,
           typename RhsInner = typename spaces_of<Rhs>::RowSpace,
-          bool Untyped = is_dimensionless_space<LhsInner> && is_dimensionless_space<RhsInner>>
+          bool Untyped = is_plain_space<LhsInner> && is_plain_space<RhsInner>>
 struct product_spaces_impl {
   static constexpr bool value = true;
   static constexpr bool converts = false;
@@ -628,7 +659,8 @@ struct product_spaces_impl<Lhs, Rhs, LhsInner, RhsInner, false> {
   struct CommonOf : InnerCommon<typename InnerProducts<P>::type> {};
   using Common = typename std::conditional_t<std::is_same_v<Pairs, RefineFail>, std::type_identity<NoPairs>,
                                              std::type_identity<CommonOf<Pairs>>>::type;
-  static constexpr bool value = Common::compatible;
+  static constexpr bool value =
+      Common::compatible && isAdditiveGroup<LhsInner>() && isAdditiveGroup<RhsInner>();  // [additive-groups]
   static constexpr bool converts = value && !Common::alike;
   using RowSpace = typename std::conditional_t<value, ScaledSpaceOf<typename spaces_of<Lhs>::RowSpace, Common::value>,
                                                std::type_identity<typename spaces_of<Lhs>::RowSpace>>::type;

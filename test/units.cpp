@@ -214,6 +214,33 @@ void products_convert_their_inner_coordinates() {
   VERIFY_IS_APPROX((Map<const Vector3d>(rotated.data())), (rotation * Vector3d(1.0, 2.0, 3.0)));
 }
 
+struct Heading : QRadiansPi<si::radian> {};
+using Pose = In<Composite<Position, Heading>, si::metre>;
+
+// Coordinate arithmetic is the space's own on a group under addition: a heading adds and subtracts modulo its period,
+// and a covariance over the difference space of a pose with a heading types its prediction. A quaternion is not one
+// (failtest/space_rule_quaternion_*.cpp).
+void additive_groups_type_coordinate_arithmetic() {
+  static_assert(internal::isAdditiveGroup<Pose>() && internal::isAdditiveGroup<DifferenceSpace<Pose>>());
+  static_assert(internal::isAdditiveGroup<Dual<Pose>>() && !internal::isAdditiveGroup<UnitQuaternion>());
+  static_assert(!internal::is_plain_space<UnitQuaternion> && internal::is_plain_space<Linear<4>>);
+
+  using Differences = DifferenceSpace<Pose>;
+  using PoseCovariance = QMatrix<Differences, Differences>;
+  using PoseTransition = QMatrix<Differences, Dual<Differences>>;
+  PoseTransition f = PoseTransition::Identity();
+  f(0, 3) = 0.5;
+  PoseCovariance p = PoseCovariance::Identity();
+  const PoseCovariance q = f * p * f.transpose() + p;
+  VERIFY_IS_APPROX(q(0, 0), 2.25);
+  VERIFY_IS_APPROX(q(3, 3), 2.0);
+
+  QVector<Pose> a(1.0, 2.0, 3.0, 3.0);
+  QVector<Pose> b(0.0, 0.0, 0.0, -3.0);
+  const QVector<Pose> difference = a - b;  // 6 radians: right modulo the period until normalized
+  VERIFY_IS_APPROX(difference(3), 6.0);
+}
+
 }  // namespace
 
 EIGEN_DECLARE_TEST(units) {
@@ -224,4 +251,5 @@ EIGEN_DECLARE_TEST(units) {
   CALL_SUBTEST_1(conversion_follows_mp_units());
   CALL_SUBTEST_1(covariance_prediction_in_feet_and_metres());
   CALL_SUBTEST_1(products_convert_their_inner_coordinates());
+  CALL_SUBTEST_1(additive_groups_type_coordinate_arithmetic());
 }

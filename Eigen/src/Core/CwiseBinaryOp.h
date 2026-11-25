@@ -105,7 +105,8 @@ class CwiseBinaryOp : public CwiseBinaryOpImpl<BinaryOp, LhsType, RhsType,
   EIGEN_STATIC_ASSERT_SAME_MATRIX_SIZE(Lhs, Rhs)
   static_assert(internal::binary_op_spaces<Functor, Lhs, Rhs>::value,
                 "a coefficient-wise operation needs operands whose spaces measure compatible quantities, or for a "
-                "product or quotient a dimensionless operand (design/decisions.md [heterogeneous-results])");
+                "product or quotient a dimensionless operand, on groups under addition; on any other space use "
+                "plus(), minus(), or compose() (design/decisions.md [heterogeneous-results], [additive-groups])");
 
   using LhsNested = typename internal::ref_selector<LhsType>::type;
   using RhsNested = typename internal::ref_selector<RhsType>::type;

@@ -67,10 +67,14 @@ mp-units' own, with conversion, and coordinate arithmetic is checked against the
 - [x] Results of operands with different tags: shared tags kept and rebound, the untagged leaves of
       the common quantities otherwise; a product's row space scaled by its inner unit keeps its tags
       for a ratio of units and drops them for a quantity with a dimension.
-- [ ] Coordinate arithmetic on groups under addition only: `Group.h` from EmrysFilter's
-      `groups-prototype` (`LieGroup`, the classification, `compose()`, `inverse()`, `identity()`,
-      `exp()`, `log()`), `UnitQuaternion`'s group members, and failtests for a difference of
-      quaternions; a covariance over the difference space of a state with a heading.
+- [x] Coordinate arithmetic on groups under addition only: the classification of EmrysFilter's
+      `groups-prototype` in `Spaces/Group.h`, held by sums, scalings, `+=` and `-=`, and a product's
+      inner spaces, with failtests for a difference and a scaling of quaternions, and a covariance
+      over the difference space of a pose with a heading. The plain fast path is now dimensionless
+      and additive, since a vector of quaternions is dimensionless.
+- [ ] The group operations of `groups-prototype`: `LieGroup`, `compose()`, `inverse()`,
+      `identity()`, `exp()`, `log()`, and `UnitQuaternion`'s group members. No rule needs them; the
+      error of the rule above names them as what to use.
 - [ ] Complex scalars: `adjoint()` swapping the spaces, and the character of a leaf's spec checked
       against `Scalar`.
 - [ ] mp-units quantities as scalars: `dt * v` with `dt` in seconds.

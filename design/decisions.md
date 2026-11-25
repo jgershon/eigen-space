@@ -296,8 +296,10 @@ group product only where that product is addition: `Linear`, `Periodic` (exactly
 period, and unwrapped until `normalize()`), and a `Composite` or `Repeated` of such, as
 EmrysFilter's `groups-prototype` classifies them. On any other space, `UnitQuaternion` or a space
 with its own `plus()`, they do not compile, and `compose()`, `plus()`, and `minus()` are the
-operations; a product's inner spaces are held to the same rule. `LieGroup`, `compose()`,
-`inverse()`, `identity()`, `exp()`, and `log()` come from that branch with the classification.
+operations; a product's inner spaces, a scaling, and `+=` and `-=` are held to the same rule, and a
+copy is not. A plain space, which the rules skip, is dimensionless and additive, since a vector of
+quaternions is dimensionless. `LieGroup`, `compose()`, `inverse()`, `identity()`, `exp()`, and
+`log()` come from that branch after the classification (roadmap step 4).
 
 **Why.** A difference of two headings by `-` is right modulo the period; of two quaternions it is
 not a rotation. Requiring a linear space instead would reject a covariance over a state with a
