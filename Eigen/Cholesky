@@ -35,6 +35,7 @@
 
 // IWYU pragma: begin_exports
 #include "src/Cholesky/LLT.h"
+#include "src/Cholesky/TypedLLT.h"
 #include "src/Cholesky/LDLT.h"
 #include "src/Cholesky/BunchKaufman.h"
 #ifdef EIGEN_USE_LAPACKE

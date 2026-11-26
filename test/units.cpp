@@ -16,6 +16,7 @@
 
 #include "main.h"
 
+#include <Eigen/Cholesky>
 #include <Eigen/Geometry>
 #include <Eigen/Units>
 
@@ -384,6 +385,43 @@ void blocks_by_tag_keep_units() {
   static_assert(std::is_same_v<RowSpaceOf<decltype(x.segment<TagPath<BodyVelocity>>())>, VelocitySI>);
 }
 
+// The skew-symmetric matrix of a vector, typed: [y]x for a position y in metres acting on rotation vectors is in metres
+// per radian, and a rotation vector's generator on velocities is a map from velocities to velocities. The Cholesky
+// factor of a covariance whitens it, and solve() returns rows in the dual space, so y^T S^-1 y is a plain number.
+void skew_and_cholesky_keep_units() {
+  using AttitudeStep = QLinear<si::radian, 3>;
+  using PositionSI = In<BodyPosition, si::metre>;
+  using VelocitySI = In<BodyVelocity, metrePerSecond>;
+  const QVector<PositionSI> y(1.0, 2.0, 3.0);
+  const QVector<AttitudeStep> phi(0.1, -0.2, 0.3);
+  const auto yCross = skew<AttitudeStep>(y);
+  static_assert(std::is_same_v<std::remove_const_t<decltype(yCross)>, QMatrix<PositionSI, Dual<AttitudeStep>>>);
+  const QVector<PositionSI> moved = yCross * phi;
+  VERIFY_IS_APPROX((Map<const Vector3d>(moved.data())), Vector3d(1.0, 2.0, 3.0).cross(Vector3d(0.1, -0.2, 0.3)));
+  const auto turn = skew<VelocitySI, VelocitySI>(phi);
+  static_assert(std::is_same_v<std::remove_const_t<decltype(turn)>, QMatrix<VelocitySI, Dual<VelocitySI>>>);
+  static_assert(std::is_same_v<decltype(skew(Vector3d())), Matrix3d>);
+
+  using PositionCovariance = QMatrix<PositionSI, PositionSI>;
+  const auto spread = (0.5 * si::metre) * Matrix3d::Identity();
+  PositionCovariance s = spread * spread.transpose();
+  s(0, 1) = s(1, 0) = 0.1;
+  const auto llt = s.llt();
+  VERIFY_IS_EQUAL(llt.info(), Success);
+  static_assert(std::is_same_v<decltype(llt.solve(y)), QVector<Dual<PositionSI>>>);
+  static_assert(std::is_same_v<decltype(llt.matrixL()), QMatrix<PositionSI, Linear<3>>>);
+  const QVector<Dual<PositionSI>> w = llt.solve(y);
+  const Matrix<double, 1, 1> nees = y.transpose() * w;
+  const Matrix3d sPlain = Map<const Matrix3d>(s.data());
+  VERIFY_IS_APPROX(nees(0, 0), Vector3d(1.0, 2.0, 3.0).dot(sPlain.llt().solve(Vector3d(1.0, 2.0, 3.0))));
+  const PositionCovariance rebuilt = llt.matrixL() * llt.matrixL().transpose();
+  VERIFY_IS_APPROX((Map<const Matrix3d>(rebuilt.data())), sPlain);
+  // A right-hand side in feet converts on the way in.
+  const QVector<In<BodyPosition, ft::foot>> yFeet = y;
+  const QVector<Dual<PositionSI>> wFeet = llt.solve(yFeet);
+  VERIFY_IS_APPROX((Map<const Vector3d>(wFeet.data())), (Map<const Vector3d>(w.data())));
+}
+
 }  // namespace
 
 EIGEN_DECLARE_TEST(units) {
@@ -399,4 +437,5 @@ EIGEN_DECLARE_TEST(units) {
   CALL_SUBTEST_1(complex_scalars_keep_units());
   CALL_SUBTEST_1(group_operations_keep_units());
   CALL_SUBTEST_1(blocks_by_tag_keep_units());
+  CALL_SUBTEST_1(skew_and_cholesky_keep_units());
 }

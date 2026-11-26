@@ -51,6 +51,7 @@
 #include "src/Geometry/Umeyama.h"
 #include "src/Geometry/UnitQuaternion.h"
 #include "src/Geometry/ExtendedPose.h"
+#include "src/Geometry/Skew.h"
 
 #ifndef EIGEN_VECTORIZE_GENERIC
 // TODO(rmlarsen): Make these work with generic vectorization if possible.

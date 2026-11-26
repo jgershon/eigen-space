@@ -376,6 +376,14 @@ on a group typed at all: $\mathrm{Ad}_X$ and $J_r$ have blocks of four different
 inertial filter, and only the spaces of the difference record which. Radians are what the closed
 forms compute in, so a step in degrees would be silently wrong rather than converted.
 
+A unit given alone is a kind in mp-units, and the fork's conversions are mp-units': a plain number
+converts into `si::radian`, and metres into metres per `si::radian`, implicitly, where
+`isq::angular_measure[si::radian]` refuses both. `skew<ColSpace>(v)` and `skew<RowSpace,
+ColSpace>(phi)` type the cross product either way: the first has rows in `v`'s units and columns
+dual to `ColSpace`, as $\partial (R^\top (l - p)) / \partial \phi$ in metres per radian; the
+second drops the radians of a rotation vector to give a rotation's generator on a space, as
+$-[\omega \Delta t]_\times$ on velocities.
+
 **Rejected.** Members on each space, `Pose::exp(d)`: generic code would need the space's type
 where a free function finds it from the operand. Other names, `groupExp()`, to avoid AutoDiff's
 `exp()`: the field's names are the API, and AutoDiff's global functions now deduce their whole
@@ -383,8 +391,10 @@ argument, so an explicit `exp<Pose>(d)` leaves them out. A unit quaternion that 
 a rotation in degrees is unusual enough that the error is the better default.
 
 **Where.** `Eigen/src/Core/Spaces/Group.h`, `LieGroup.h`, `Bound.h`;
-`Eigen/src/Geometry/UnitQuaternion.h`, `ExtendedPose.h`; `test/spaces_group.cpp`, `test/units.cpp`;
-`failtest/units_quaternion_in_degrees.cpp`, `failtest/units_group_step_wrong_units.cpp`.
+`Eigen/src/Geometry/UnitQuaternion.h`, `ExtendedPose.h`, `Skew.h`; `test/spaces_group.cpp`, `test/units.cpp`,
+`test/invariant_ekf.cpp`; `failtest/units_quaternion_in_degrees.cpp`,
+`failtest/units_group_step_wrong_units.cpp`, `failtest/units_skew_needs_radians.cpp`,
+`failtest/units_ekf_jacobian_wrong_units.cpp`.
 
 ## complex-scalars
 
@@ -451,14 +461,18 @@ scalar buffer. Each decomposition states the spaces of its inputs and factors in
 interface: the Cholesky factor of `QMatrix<X, X>` is `QMatrix<X, Linear<n>>`; an eigendecomposition
 takes an endomorphism, `QMatrix<X, Dual<X>>`, so a covariance has eigenvalues only when X is
 uniform; a determinant takes a fixed-size matrix, since its unit is the product of the diagonal's.
-The remaining factorizations state their factor spaces as they are converted, following Hart.
+`LLT` of a typed `QMatrix<X, X>` is a partial specialization that factors the plain buffer with
+`LLT`'s own code: `matrixL()` is `QMatrix<X, Linear<n>>`, and `solve(b)` assigns `b` into rows in X
+and returns rows in `Dual<X>`, so $b^\top A^{-1} b$ is dimensionless. The remaining factorizations
+state their factor spaces as they are converted, following Hart.
 
 **Why.** The numerics do not change, and nothing in the kernels needs to know a unit. The
 boundary is where a factor acquires a meaning, and it is where a misuse is caught.
 
 **Rejected.** Typing inside the kernels. Leaving decompositions untyped and casting at each use.
 
-**Where.** `Eigen/src/Cholesky`, `LU`, `QR`, `SVD`, `Eigenvalues`; the public classes only.
+**Where.** `Eigen/src/Cholesky` (`TypedLLT.h`), `LU`, `QR`, `SVD`, `Eigenvalues`; the public classes
+only.
 
 ## continuous-spaces-only
 
