@@ -422,6 +422,39 @@ void skew_and_cholesky_keep_units() {
   VERIFY_IS_APPROX((Map<const Vector3d>(wFeet.data())), (Map<const Vector3d>(w.data())));
 }
 
+// A matrix's axes are fixed only up to a common factor c: (R c, C / c) has the entry units of (R, C). So sigma^2 I, in
+// m^2 by 1, assigns into and adds to a covariance in m by m, converting entry by entry, and a sum takes the left
+// operand's gauge. One c must serve every coordinate: a transition is still not a covariance.
+void common_factor_moves_between_axes() {
+  using PositionCovariance = QMatrix<PositionM, PositionM>;
+  const auto variance = 2.0 * si::metre * si::metre;
+  const PositionCovariance p = variance * Matrix3d::Identity();
+  VERIFY_IS_APPROX((Map<const Matrix3d>(p.data())), (2.0 * Matrix3d::Identity()));
+  const QMatrix<PositionFt, PositionFt> pFeet = variance * QMatrix<PositionM, Dual<PositionM>>::Identity();
+  VERIFY_IS_APPROX(pFeet(1, 1), 2.0 / (footInMetres * footInMetres));
+  VERIFY_IS_APPROX(pFeet(0, 1), 0.0);
+
+  const PositionCovariance sum = p + (1.0 * si::metre * si::metre) * Matrix3d::Identity();
+  VERIFY_IS_APPROX((Map<const Matrix3d>(sum.data())), (3.0 * Matrix3d::Identity()));
+  // In p's gauge; untagged, as a sum is where only one operand has the tag.
+  static_assert(internal::spaces_alike<RowSpaceOf<decltype(p + variance * Matrix3d::Identity())>, PositionM>::value);
+  PositionCovariance accumulated = p;
+  accumulated += (100.0 * si::centi<si::metre> * si::metre) * Matrix3d::Identity();
+  VERIFY_IS_APPROX(accumulated(2, 2), 3.0);
+  const PositionCovariance explicitly = (variance * Matrix3d::Identity()).in<PositionM, PositionM>();
+  VERIFY_IS_APPROX(explicitly(0, 0), 2.0);
+
+  Covariance q = Covariance::Zero();
+  q.block<Position, Position>() = variance * Matrix3d::Identity();
+  q.block<Velocity, Velocity>() = (0.5 * metrePerSecond * metrePerSecond) * Matrix3d::Identity();
+  VERIFY_IS_APPROX(q(0, 0), 2.0);
+  VERIFY_IS_APPROX(q(4, 4), 0.5);
+
+  using Copy = internal::assign_op<double, double>;
+  static_assert(!internal::assignment_spaces<Copy, Covariance, Transition>::value);
+  static_assert(!internal::assignment_spaces<Copy, QVector<PositionM>, QVector<In<Velocity, metrePerSecond>>>::value);
+}
+
 }  // namespace
 
 EIGEN_DECLARE_TEST(units) {
@@ -438,4 +471,5 @@ EIGEN_DECLARE_TEST(units) {
   CALL_SUBTEST_1(group_operations_keep_units());
   CALL_SUBTEST_1(blocks_by_tag_keep_units());
   CALL_SUBTEST_1(skew_and_cholesky_keep_units());
+  CALL_SUBTEST_1(common_factor_moves_between_axes());
 }

@@ -183,6 +183,17 @@ consteval bool scalarFitsQuantity(const Q& q) {
   }
 }
 
+/** \internal The unit of \a q given alone, which measures \a q's kind rather than its spec: si::metre for
+ * <tt>isq::displacement[si::metre]</tt>. */
+template <typename Q>
+consteval auto unitAlone(const Q& q) {
+  if constexpr (IsEigenDimensionless<Q>) {
+    return q;
+  } else {
+    return units_backend<Q>::unitAlone(q);
+  }
+}
+
 /** \internal The quantity of the dual coordinate: \a q inverted. */
 template <typename Q>
 consteval auto inverseQuantity(const Q& q) {

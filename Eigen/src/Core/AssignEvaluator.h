@@ -1066,9 +1066,9 @@ EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE constexpr void call_assignment_no_alias(Ds
     // The source converts into the destination's units, as mp-units converts a quantity [heterogeneous-results].
     using DstRow = typename internal::spaces_of<ActualDstTypeCleaned>::RowSpace;
     using DstCol = typename internal::spaces_of<ActualDstTypeCleaned>::ColSpace;
-    using Converted = decltype(internal::convertSpaces<DstRow, DstCol>(src));
-    Assignment<ActualDstTypeCleaned, Converted, Func>::run(actualDst, internal::convertSpaces<DstRow, DstCol>(src),
-                                                           func);
+    using Converted = decltype(internal::convertSpaces<DstRow, DstCol, true>(src));
+    Assignment<ActualDstTypeCleaned, Converted, Func>::run(actualDst,
+                                                           internal::convertSpaces<DstRow, DstCol, true>(src), func);
   } else {
     Assignment<ActualDstTypeCleaned, Src, Func>::run(actualDst, src, func);
   }

@@ -258,11 +258,13 @@ linear map from X to Z is `QMatrix<Z, Dual<X>>`, a covariance of x is `QMatrix<X
 information matrix is `QMatrix<Dual<X>, Dual<X>>`. The operations:
 
 - sum, difference, and cwise operations: spaces of one structure whose coordinates measure
-  compatible quantities [heterogeneous-results], on a group under addition [additive-groups]. A
-  cwise product or quotient is typed only against a dimensionless operand, as a scalar is;
+  compatible quantities [heterogeneous-results], on a group under addition [additive-groups], up
+  to one common factor c between the axes. A cwise product or quotient is typed only against a
+  dimensionless operand, as a scalar is;
 - assignment, construction, `+=`, and `-=`: the source converts into the destination's spaces as
-  mp-units converts a quantity [heterogeneous-results]; `*=` and `/=` take a dimensionless factor.
-  `Zero()`, `Constant()`, and `Identity()` are in the spaces of the type they are called on;
+  mp-units converts a quantity [heterogeneous-results], up to the same common factor; `*=` and
+  `/=` take a dimensionless factor. `Zero()`, `Constant()`, and `Identity()` are in the spaces of
+  the type they are called on;
 - product: `C_lhs` is `Dual<R_rhs>` up to one common factor c, result `(R_lhs c, C_rhs)`
   [heterogeneous-results]; the inner-dimension static assert is the dimensionless case;
 - transpose and adjoint swap; inverse is `(Dual<C>, Dual<R>)`; a solve of `A x = b` puts x in `Dual<C>`;
@@ -271,13 +273,29 @@ information matrix is `QMatrix<Dual<X>, Dual<X>>`. The operations:
 
 These are the rules of Hart, *Multidimensional Analysis* (Springer, 1995), chapters 2 to 4.
 
+The common factor: `(R c, C / c)` gives entry (i, j) the unit of `(R, C)`, so a matrix's type is
+its axes only up to c. Where the axes do not compare directly, the source is rebalanced to
+`(R_src / c, C_src c)`, untagged, with $c = u_{R_{src}}(0) / u_{R_{dst}}(0)$, the ratio of the
+units alone, and then compared; the coefficients do not change. So $(\sigma^2 \Delta t) I$, in
+rad² by 1, assigns into a covariance's rad-by-rad block, while one c must serve every coordinate,
+so a variance in m² throughout is not a covariance of positions and velocities. c is a unit of its
+kind, not a spec, since a spec split across the axes, length² / displacement, does not convert
+into the columns' displacement where the entries' m² does. A sum is in the left operand's gauge,
+so `a + b` and `b + a` have equal entry units in spaces that may differ by c. The direct
+comparison uses the caller's test: the radian and rad² have dimension one, so a sum finds them
+compatible, but an assignment of rad² into rad, which mp-units does not convert implicitly, takes
+the gauge.
+
 **Why.** A Kalman filter types end to end under them: P Hᵀ S⁻¹ is `(X, Dual<Z>)`, K times the
 innovation is in X, and P x does not compile. Eigenvalues of a mixed-unit covariance do not compile
 either, which is the classic mistake they catch. Units per block, not per entry, is what lets a
 `Dynamic` axis stay typed.
 
 **Rejected.** A type per row and per column (TypedLinearAlgebra): N + M types, no dynamic sizes.
-Typing through the scalar, `Matrix<quantity<U>>`, as mp-units and Au do: one unit for the whole
+Axes compared separately with no common factor: `(sigma^2 * dt) * I` would not assign into a
+covariance, and such blocks would have to be built as $L L^\top$. Comparing every entry's unit,
+N M checks where the factor needs N + M. Typing through the scalar, `Matrix<quantity<U>>`, as
+mp-units and Au do: one unit for the whole
 matrix, so no state vector and no covariance. `Dual<X>` as the leaf with its unit inverted, which
 would drop the tags and with them addressing on the column side of a Jacobian.
 
@@ -287,7 +305,7 @@ it drops the units of a typed operand it wraps.
 
 **Where.** `Eigen/src/Core/Spaces/Dual.h`; the rules in `Spaces/Rules.h`, checked in
 `CwiseBinaryOp.h`, `Product.h`, and `AssignEvaluator.h`, with the spaces of `Transpose`, `Product`,
-`CwiseBinaryOp`, and `CwiseNullaryOp` (step 3); `failtest/space_rule_*.cpp`; and `Inverse.h`,
+`CwiseBinaryOp`, and `CwiseNullaryOp` (step 3); `failtest/space_rule_*.cpp`, `failtest/units_gauge_needs_one_factor.cpp`; and `Inverse.h`,
 `Solve.h`, `Redux.h`, `VectorwiseOp.h`, `Dot.h`, and the blocks and maps (step 5).
 
 ## heterogeneous-results

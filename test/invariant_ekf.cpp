@@ -19,7 +19,6 @@
 // covariance by their normalized squared error.
 
 // Before main.h, whose forbidden-identifier macros would break mp-units' headers.
-#include <mp-units/math.h>
 #include <mp-units/systems/isq.h>
 #include <mp-units/systems/si.h>
 
@@ -109,13 +108,12 @@ struct TypedFilter {
     m.block<Position, Position>() = -skew<PositionSI, PositionSI>(turn);
     const Transition phi = Transition::Identity() + m + 0.5 * m * m;
 
-    // The readings' noise over the step, in the body frame: the gyroscope's in radians, the accelerometer's in metres
-    // per second, as the outer products of their standard deviations.
-    const auto gyroSpread = mp_units::sqrt(gyroDensity * dt) * Matrix3d::Identity();
-    const auto accelSpread = mp_units::sqrt(accelDensity * dt) * Matrix3d::Identity();
+    // The readings' noise over the step, in the body frame: the gyroscope's in square radians, the accelerometer's in
+    // square metres per second squared. (sigma^2 dt) I is in rad^2 by 1, which is rad by rad up to the common factor
+    // (design/decisions.md [dual-spaces]).
     Covariance q = Covariance::Zero();
-    q.block<Attitude, Attitude>() = gyroSpread * gyroSpread.transpose();
-    q.block<Velocity, Velocity>() = accelSpread * accelSpread.transpose();
+    q.block<Attitude, Attitude>() = (gyroDensity * dt) * Matrix3d::Identity();
+    q.block<Velocity, Velocity>() = (accelDensity * dt) * Matrix3d::Identity();
     p = phi * p * phi.transpose() + q;
   }
 
@@ -128,9 +126,7 @@ struct TypedFilter {
     h.middleCols<Attitude>() = skew<AttitudeStep>(predicted);
     h.middleCols<Position>() = -QMatrix<SightingSI, Dual<PositionSI>>::Identity();
 
-    const auto noiseSpread = mp_units::sqrt(sightingVariance) * Matrix3d::Identity();
-    const MeasurementCovariance n = noiseSpread * noiseSpread.transpose();
-    const MeasurementCovariance s = h * p * h.transpose() + n;
+    const MeasurementCovariance s = h * p * h.transpose() + sightingVariance * Matrix3d::Identity();
     const Gain gain = s.llt().solve(h * p).transpose();
     const Error correction = gain * (y - predicted);
     x = plus(x, correction);

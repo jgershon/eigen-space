@@ -168,6 +168,17 @@ struct units_backend {
     return (1.0L * unitOf(from)).numerical_value_in(unitOf(to));
   }
 
+  /** The unit of \a q given alone, of its kind, as in <tt>quantity<si::metre></tt>; the unit one where \a q has none.
+   */
+  template <typename A>
+  static consteval auto unitAlone(A q) {
+    if constexpr (isBound(A{})) {
+      return unitOf(q);
+    } else {
+      return mp_units::one;
+    }
+  }
+
   template <typename A>
   static consteval auto inverse(A q) {
     using M = decltype(toMp(q));

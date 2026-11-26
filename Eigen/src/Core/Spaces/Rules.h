@@ -19,8 +19,9 @@ namespace internal {
 //   A + B:  u_RA(i) u_CA(j) = u_RB(i) u_CB(j) for all i, j, which is RA = RB and CA = CB up to a common factor;
 //   A * B:  u_RA(i) u_CA(k) u_RB(k) u_CB(j) must not depend on k, which CA = Dual<RB> meets.
 // The rules compare units, coordinate by coordinate, not the space types: a tag, a composite's nesting, and
-// periodicity address and wrap coordinates but do not change what they are measured in. The common factor is
-// not admitted: a sum of a matrix and a scaled copy of it in other units is rejected, as the decision records.
+// periodicity address and wrap coordinates but do not change what they are measured in. The common factor c of a sum
+// and an assignment is admitted (GaugedSpaces): (R c, C / c) has the entry units of (R, C), so (sigma^2 dt) I in
+// (X sigma^2 dt, Dual<X>) assigns into a covariance over (X, X) whose entries are sigma^2 dt.
 
 /** \internal \a Size coordinates (\c Dynamic if resizable) in the unit \a U. */
 template <auto U, int Size>
@@ -467,6 +468,48 @@ struct ScaledSpaceOf {
                          std::conditional_t<isDimensionlessKind(C), ScaledByTags<S, C>, ScaledByRuns<S, C>>>>::type;
 };
 
+/** \internal The quantity of the first coordinate of the runs \a Runs; dimensionless if there is none. */
+template <typename Runs>
+struct FirstQuantity {
+  static constexpr auto value = dimensionless;
+};
+
+template <auto U, int N, typename... Rest>
+struct FirstQuantity<RunList<UnitRun<U, N>, Rest...>> {
+  static constexpr auto value = U;
+};
+
+template <typename Inner, typename... Rest>
+struct FirstQuantity<RunList<RepeatedRuns<Inner>, Rest...>> : FirstQuantity<Inner> {};
+
+/** \internal The spaces (\a FromRow, \a FromCol) of a matrix rebalanced to the gauge of (\a ToRow, \a ToCol): as they
+ * are where each axis already compares with its counterpart, and otherwise (FromRow / c, FromCol c), untagged, with
+ * c the ratio of the units alone of the first rows, u_FromRow(0) / u_ToRow(0). Entry (i, j) keeps its unit,
+ * u_FromRow(i) u_FromCol(j), so the coefficients stay as they are; the rules then compare the rebalanced axes, which
+ * match only where one c serves every coordinate. c is a unit of its kind, not a spec: a spec split across the axes,
+ * length^2 / displacement, would not convert into the columns' displacement where the entries' m^2 does. The runs
+ * are scaled directly, since a power of the radian is equivalent to the unit one, which ScaledSpaceOf skips.
+ * \a Implicit compares the axes as an assignment does, by implicit conversion, and otherwise as a sum does: the radian
+ * and its square have dimension one, so they are compatible but do not convert into each other implicitly, and an
+ * assignment of rad^2 by 1 into rad by rad must take the gauge that a sum would not need. */
+template <typename FromRow, typename FromCol, typename ToRow, typename ToCol, bool Implicit = false>
+struct GaugedSpaces {
+  template <typename From, typename To>
+  static constexpr bool axisMatches =
+      std::is_same_v<From, To> ||
+      (Implicit ? AllPairs<AssignablePred, SpacePairs<From, To>>::value : spaces_equal<From, To>::value);
+  static constexpr bool direct = axisMatches<FromRow, ToRow> && axisMatches<FromCol, ToCol>;
+  static constexpr auto factor = quantityProduct(unitAlone(FirstQuantity<SpaceRuns<FromRow>>::value),
+                                                 inverseQuantity(unitAlone(FirstQuantity<SpaceRuns<ToRow>>::value)));
+  template <typename S, auto C>
+  struct Scaled {
+    using type = typename SpaceOfRuns<typename ScaledRuns<SpaceRuns<S>, C>::type>::type;
+  };
+  using RowSpace =
+      typename std::conditional_t<direct, std::type_identity<FromRow>, Scaled<FromRow, inverseQuantity(factor)>>::type;
+  using ColSpace = typename std::conditional_t<direct, std::type_identity<FromCol>, Scaled<FromCol, factor>>::type;
+};
+
 /** \internal Whether an expression of type \a T has a unit anywhere. An expression that spaces_of is not
  * specialized for has dimensionless Linear spaces, so it has none, and meets the rules only with untyped operands. */
 template <typename T>
@@ -495,12 +538,15 @@ struct sum_spaces {
   using ColSpace = typename spaces_of<A>::ColSpace;
 };
 
+// Operands whose axes differ by a common factor are added in the left operand's gauge: a + b and b + a then have the
+// same entry units in spaces that may differ by that factor.
 template <typename A, typename B>
 struct sum_spaces<A, B, false> {
   using AR = typename spaces_of<A>::RowSpace;
   using AC = typename spaces_of<A>::ColSpace;
-  using BR = typename spaces_of<B>::RowSpace;
-  using BC = typename spaces_of<B>::ColSpace;
+  using Gauged = GaugedSpaces<typename spaces_of<B>::RowSpace, typename spaces_of<B>::ColSpace, AR, AC>;
+  using BR = typename Gauged::RowSpace;
+  using BC = typename Gauged::ColSpace;
   static constexpr bool additive = has_additive_spaces<A> && has_additive_spaces<B>;
   static constexpr bool value = additive && spaces_equal<AR, BR>::value && spaces_equal<AC, BC>::value;
   using RowSpace = typename std::conditional_t<value, CommonSpaceOf<AR, BR>, std::type_identity<AR>>::type;
@@ -574,8 +620,9 @@ template <typename Func, typename Dst, typename Src>
 struct assignment_spaces_impl<Func, Dst, Src, false> {
   using DR = typename spaces_of<Dst>::RowSpace;
   using DC = typename spaces_of<Dst>::ColSpace;
-  using SR = typename spaces_of<Src>::RowSpace;
-  using SC = typename spaces_of<Src>::ColSpace;
+  using Gauged = GaugedSpaces<typename spaces_of<Src>::RowSpace, typename spaces_of<Src>::ColSpace, DR, DC, true>;
+  using SR = typename Gauged::RowSpace;
+  using SC = typename Gauged::ColSpace;
   static constexpr bool equal = assign_op_unit_combination<Func>::value == unit_combination::equal;
   // A copy needs no group; +=, -=, *=, and /= act on coordinates, so they need one under addition [additive-groups].
   static constexpr bool additive = !(is_accumulating_assignment<Func>::value || !equal) || has_additive_spaces<Dst>;
@@ -816,11 +863,15 @@ template <typename Inner>
 struct HasRepeatedPair<RepeatedPair<Inner>> : std::true_type {};
 
 /** \internal \a xpr in the spaces \a ToRow and \a ToCol [heterogeneous-results]: each coefficient times the factors
- * of its row and column, then relabeled; only relabeled where the units already agree. */
-template <typename ToRow, typename ToCol, typename Xpr>
+ * of its row and column, then relabeled; only relabeled where the units already agree. Its axes are rebalanced first
+ * where they differ from the targets' by a common factor, comparing them as an assignment does where \a Implicit
+ * (GaugedSpaces). */
+template <typename ToRow, typename ToCol, bool Implicit, typename Xpr>
 auto convertSpaces(const Xpr& xpr) {
-  using FromRow = typename spaces_of<Xpr>::RowSpace;
-  using FromCol = typename spaces_of<Xpr>::ColSpace;
+  using Gauged =
+      GaugedSpaces<typename spaces_of<Xpr>::RowSpace, typename spaces_of<Xpr>::ColSpace, ToRow, ToCol, Implicit>;
+  using FromRow = typename Gauged::RowSpace;
+  using FromCol = typename Gauged::ColSpace;
   using RowPairs = SpacePairs<FromRow, ToRow>;
   using ColPairs = SpacePairs<FromCol, ToCol>;
   static_assert(spaces_equal<FromRow, ToRow>::value && spaces_equal<FromCol, ToCol>::value,

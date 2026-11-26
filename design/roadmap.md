@@ -24,11 +24,8 @@ and decomposition the slice did not reach.
 - [ ] The factor spaces of Cholesky, LU, QR, SVD, and the eigensolvers.
 - [ ] A fixed-size Kalman example whose every matrix is typed, beside step 6's filter
       (`test/invariant_ekf.cpp`).
-- [ ] A scaling by a quantity with a dimension, `q * m`, moves the unit into the row space, and the
-      rules compare rows and columns separately, so `(sigma^2 * dt) * I` does not assign into a
-      covariance block whose entries are in the same units; step 6 builds such blocks as
-      $L L^\top$. Assignment, and perhaps sums, comparing entry units, which is Hart's notion of
-      a matrix's type, would accept it.
+- [x] Sums and assignments admit one common factor between the axes, so `(sigma^2 * dt) * I`
+      assigns into a covariance block in the same entry units ([dual-spaces]).
 
 Done when: `buildtests` and `check` pass with no test changed, the failtests fail for the right
 reason, the Kalman example matches the same filter on plain matrices to rounding, and the
