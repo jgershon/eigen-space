@@ -504,6 +504,7 @@ ei_add_test(geo_unit_quaternion)
 ei_add_test(qmatrix)
 ei_add_test(spaces)
 ei_add_test(spaces_reset)
+ei_add_test(spaces_group)
 include(EigenMPUnits)
 # The spaces with units need Eigen/Units and so mp-units (design/decisions.md [mp-units-dependency]).
 if(MPUNITS_FOUND)

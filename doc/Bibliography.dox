@@ -7,6 +7,20 @@ EmrysFilter's bibliography names them (design/decisions.md [bibliography-page]).
 what the code takes from it, such as the equation numbers or the section, and where it departs. Entries are in
 alphabetical order by first author.
 
+\anchor Barrau2017
+A. Barrau and S. Bonnabel. The invariant extended Kalman filter as a stable observer. *IEEE
+Transactions on Automatic Control*, 62(4):1797–1812, 2017. The left- and right-invariant extended
+Kalman filters and the group-affine dynamics on which their error's Jacobian does not depend on
+the estimate. Free: [arXiv](https://arxiv.org/abs/1410.1465). Not read; cited as EmrysFilter's
+bibliography cites it, through \ref Sola2018 "Solà, Deray, and Atchuthan (2018)".
+
+\anchor Hartley2020
+R. Hartley, M. Ghaffari, R. M. Eustice, and J. W. Grizzle. Contact-aided invariant extended Kalman
+filtering for robot state estimation. *The International Journal of Robotics Research*,
+39(4):402–430, 2020. The invariant filter of an inertial unit on \f$ SE_2(3) \f$, and of a legged
+robot whose state keeps each foot in contact inside the group. Free:
+[arXiv](https://arxiv.org/abs/1904.09251). Not read; the library takes no algorithm from it.
+
 \anchor Hertzberg2013
 C. Hertzberg, R. Wagner, U. Frese, and L. Schröder. Integrating generic sensor fusion algorithms
 with sound state representations through encapsulation of manifolds. *Information Fusion*,

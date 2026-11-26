@@ -161,6 +161,18 @@ consteval bool isDimensionlessKind(const Q& q) {
   }
 }
 
+/** \internal Whether a coordinate measuring \a q is a number of radians: Eigen's dimensionless, or a unit of dimension
+ * one and magnitude one, such as the radian. The rotations' closed forms read their steps in radians.
+ */
+template <typename Q>
+consteval bool inRadians(const Q& q) {
+  if constexpr (IsEigenDimensionless<Q>) {
+    return true;
+  } else {
+    return units_backend<Q>::inUnitOne(q);
+  }
+}
+
 /** \internal Whether a coordinate measuring \a q holds a \a Scalar of the right character [complex-scalars]. */
 template <typename Scalar, typename Q>
 consteval bool scalarFitsQuantity(const Q& q) {

@@ -281,6 +281,58 @@ void complex_scalars_keep_units() {
                 internal::spaceHoldsScalar<QLinear<si::volt, 2>, std::complex<double>>());
 }
 
+// SE_2(3) with units: the attitude's steps in radians, a velocity and a position that turn with it. In binds the
+// vectors' units by dimension; the attitude's values stay plain numbers and its differences radians.
+struct Attitude : QUnitQuaternion<si::radian> {};
+struct BodyVelocity : QLinear<isq::velocity, 3> {};
+struct BodyPosition : QLinear<isq::displacement, 3> {};
+struct Body : ExtendedPose<Attitude, BodyVelocity, BodyPosition> {};
+using BodySI = In<Body, metrePerSecond, si::metre>;
+using BodyFt = In<Body, ft::foot / si::second, ft::foot>;
+using BodyStep = DifferenceSpace<BodySI>;
+
+// The group operations on typed vectors: exp() of a step in radians, metres per second, and metres is a value of the
+// group, log() inverts it, and the adjoint maps steps to steps with its blocks in the units of their rows over their
+// columns. A step in feet converts on the way in.
+void group_operations_keep_units() {
+  static_assert(LieGroup<BodySI> && !internal::isAdditiveGroup<BodySI>());
+  static_assert(internal::spaces_equal<
+                BodyStep, Composite<QLinear<si::radian, 3>, QLinear<metrePerSecond, 3>, QLinear<si::metre, 3>>>::value);
+  static_assert(!internal::spaces_equal<BodyStep, Linear<9>>::value);
+  using Value = QVector<BodySI>;
+  using Step = QVector<BodyStep>;
+  static_assert(std::is_same_v<decltype(exp<BodySI>(Step())), Value>);
+  static_assert(std::is_same_v<decltype(log(Value())), Step>);
+  static_assert(std::is_same_v<decltype(adjoint(Value())), QMatrix<BodyStep, Dual<BodyStep>>>);
+  static_assert(std::is_same_v<decltype(rightJacobian<BodySI>(Step())), QMatrix<BodyStep, Dual<BodyStep>>>);
+
+  Step xi;
+  xi << 0.3, -0.2, 0.5, 1.0, 2.0, -0.5, 4.0, -3.0, 2.0;
+  const Value x = exp<BodySI>(xi);
+  const Step back = log(x);
+  VERIFY_IS_APPROX((Map<const Matrix<double, 9, 1>>(back.data())), (Map<const Matrix<double, 9, 1>>(xi.data())));
+
+  // The same step in feet and feet per second gives the same value once converted.
+  const QVector<DifferenceSpace<BodyFt>> xiFt = xi;
+  VERIFY_IS_APPROX(xiFt(3), xi(3) / footInMetres);
+  VERIFY_IS_APPROX(xiFt(0), xi(0));
+  const Value fromFeet = exp<BodySI>(xiFt);
+  VERIFY_IS_APPROX((Map<const Matrix<double, 10, 1>>(fromFeet.data())), (Map<const Matrix<double, 10, 1>>(x.data())));
+
+  // a Exp(d) = Exp(Ad_a d) a, typed: the product of the adjoint and a step is a step.
+  const QMatrix<BodyStep, Dual<BodyStep>> ad = adjoint(x);
+  const Step turned = ad * xi;
+  const Value left = compose(x, exp<BodySI>(xi));
+  const Value right = compose(exp<BodySI>(turned), x);
+  const Step error = minus(left, right);
+  VERIFY((Map<const Matrix<double, 9, 1>>(error.data())).norm() < 1e-12);
+  const Value moved = plus(x, xi);
+  VERIFY_IS_APPROX((Map<const Matrix<double, 10, 1>>(moved.data())), (Map<const Matrix<double, 10, 1>>(left.data())));
+  const Value e = identity<BodySI>();
+  const Value roundTrip = compose(x, inverse(x));
+  VERIFY((Map<const Matrix<double, 9, 1>>(Step{minus(roundTrip, e)}.data())).norm() < 1e-12);
+}
+
 }  // namespace
 
 EIGEN_DECLARE_TEST(units) {
@@ -294,4 +346,5 @@ EIGEN_DECLARE_TEST(units) {
   CALL_SUBTEST_1(additive_groups_type_coordinate_arithmetic());
   CALL_SUBTEST_1(quantities_scale_matrices());
   CALL_SUBTEST_1(complex_scalars_keep_units());
+  CALL_SUBTEST_1(group_operations_keep_units());
 }

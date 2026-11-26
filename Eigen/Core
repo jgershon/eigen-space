@@ -519,6 +519,7 @@ using std::size_t;
 #include "src/Core/Spaces/Dual.h"
 #include "src/Core/Spaces/Group.h"
 #include "src/Core/Spaces/Rules.h"
+#include "src/Core/Spaces/LieGroup.h"
 // IWYU pragma: end_exports
 
 #include "src/Core/util/ReenableStupidWarnings.h"

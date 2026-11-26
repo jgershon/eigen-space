@@ -158,7 +158,7 @@ class MatrixBase : public DenseBase<Derived> {
   template <typename OtherDerived>
   EIGEN_DEVICE_FUNC auto operator*(const MatrixBase<OtherDerived>& other) const;
 
-  /** eturns this matrix in the spaces  RowSpace and  ColSpace, which measure compatible quantities in other
+  /** \returns this matrix in the spaces \a RowSpace and \a ColSpace, which measure compatible quantities in other
    * units: each coefficient converted, as mp-units' <tt>q.in(unit)</tt> converts a quantity
    * (design/decisions.md [heterogeneous-results]). */
   template <typename RowSpace, typename ColSpace = typename internal::spaces_of<Derived>::ColSpace>

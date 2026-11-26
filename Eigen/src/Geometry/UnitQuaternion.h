@@ -12,6 +12,21 @@
 
 namespace Eigen {
 
+template <internal::QuantityArgument auto Q = dimensionless>
+struct QUnitQuaternion;
+
+namespace internal {
+
+template <auto Q>
+std::true_type unitQuaternionOf(const QUnitQuaternion<Q>*);
+std::false_type unitQuaternionOf(const void*);
+
+/** \internal A QUnitQuaternion in any unit of angle, or a tag derived from one. */
+template <typename T>
+concept IsUnitQuaternion = decltype(unitQuaternionOf(static_cast<const T*>(nullptr)))::value;
+
+}  // namespace internal
+
 /** \geometry_module \ingroup Geometry_Module
  * \brief An attitude as a space: a [unit quaternion](https://en.wikipedia.org/wiki/Quaternions_and_spatial_rotation)
  * of four coordinates whose differences are three-coordinate rotation vectors in the body frame.
@@ -32,8 +47,20 @@ namespace Eigen {
  *
  * Name the block with a tag, <tt>struct Attitude : UnitQuaternion {};</tt>, and view it in model
  * code with <tt>UnitQuaternion::map<Attitude>(space, x)</tt>. Use Repeated for several.
+ *
+ * The rotation vectors measure \a Q, Eigen's dimensionless for UnitQuaternion, or an mp-units unit of angle of
+ * magnitude one, <tt>QUnitQuaternion<si::radian></tt>, since the closed forms read them in radians; the four
+ * coordinates of a value are plain numbers whatever \a Q is (design/decisions.md [leaf-quantities]).
+ *
+ * It is a Lie group, SO(3), with the members of the LieGroup concept, and a rotation that can head an ExtendedPose,
+ * turning vectors of three coordinates (EmrysFilter's groups-prototype).
  */
-struct UnitQuaternion {
+template <internal::QuantityArgument auto Q>
+struct QUnitQuaternion {
+  static_assert(internal::inRadians(Q),
+                "a unit quaternion's differences are rotation vectors in radians: give it Eigen's dimensionless, or an "
+                "mp-units unit of angle of magnitude one, such as si::radian");
+
   static constexpr int FixedValueDimension = 4;  ///< four coordinates, (x, y, z, w)
   static constexpr int ValueDimensionStep = 0;   ///< not resizable
   static constexpr int MaxValueDimension = 4;    ///< the value dimension, as for any fixed space
@@ -41,8 +68,8 @@ struct UnitQuaternion {
   /** \returns 4, the number of coordinates of a value */
   static constexpr Index valueDimension() { return 4; }
 
-  /** \returns the difference space: rotation vectors, three plain coordinates */
-  Linear<3> difference() const { return {}; }
+  /** \returns the difference space: rotation vectors, three coordinates measuring \a Q */
+  QLinear<Q, 3> difference() const { return {}; }
 
   /** Scales each column of \a block, a value (x, y, z, w) per column, to unit norm with
    * \f$ w \ge 0 \f$, writing through the const reference as writable() does.
@@ -89,6 +116,89 @@ struct UnitQuaternion {
   void resetJacobian(const MatrixBase<X>&, const MatrixBase<D>& d, const MatrixBase<Out>& out) const {
     using T = typename Out::Scalar;
     writable(out) = rightJacobian(d.template cast<T>());
+  }
+
+  /** Writes the product \f$ a \otimes b \f$ through \a out, normalized: the group's compose(). */
+  template <typename A, typename B, typename Out>
+  void compose(const MatrixBase<A>& a, const MatrixBase<B>& b, const MatrixBase<Out>& out) const {
+    using T = typename Out::Scalar;
+    auto& o = writable(out);
+    o = (quaternionOf<T>(a) * quaternionOf<T>(b)).coeffs();
+    normalize(o);
+  }
+
+  /** Writes the inverse of \a a, its conjugate, through \a out. */
+  template <typename A, typename Out>
+  void inverse(const MatrixBase<A>& a, const MatrixBase<Out>& out) const {
+    using T = typename Out::Scalar;
+    writable(out) = quaternionOf<T>(a).conjugate().coeffs();
+  }
+
+  /** Writes the identity rotation, (0, 0, 0, 1), through \a out. */
+  template <typename Out>
+  void identity(const MatrixBase<Out>& out) const {
+    writable(out) = identity<typename Out::Scalar>();
+  }
+
+  /** Writes the coordinates of \f$ \mathrm{Exp}(d) \f$ through \a out: exponential() as the group's member. */
+  template <typename D, typename Out>
+  void exp(const MatrixBase<D>& d, const MatrixBase<Out>& out) const {
+    using T = typename Out::Scalar;
+    writable(out) = exponential(d.template cast<T>()).coeffs();
+  }
+
+  /** Writes the rotation vector \f$ \mathrm{Log}(a) \f$ through \a out: logarithm() as the group's member. */
+  template <typename A, typename Out>
+  void log(const MatrixBase<A>& a, const MatrixBase<Out>& out) const {
+    using T = typename Out::Scalar;
+    writable(out) = logarithm(quaternionOf<T>(a));
+  }
+
+  /** Writes the adjoint of \a a through \a out: its rotation matrix, which takes a rotation vector in the body frame
+   * to the same rotation in the world frame.
+   */
+  template <typename A, typename Out>
+  void adjoint(const MatrixBase<A>& a, const MatrixBase<Out>& out) const {
+    rotationMatrix(a, out);
+  }
+
+  /** Writes rightJacobian() of \a d through \a out: the group's member. */
+  template <typename D, typename Out>
+  void rightJacobian(const MatrixBase<D>& d, const MatrixBase<Out>& out) const {
+    using T = typename Out::Scalar;
+    writable(out) = rightJacobian(d.template cast<T>());
+  }
+
+  /** The size of the vectors this rotation turns, for a rotation that heads an ExtendedPose. */
+  static constexpr int ActionDimension = 3;
+
+  /** Writes the rotation matrix of \a q through \a out, 3 by 3: what a rotation that heads an ExtendedPose turns its
+   * vectors by.
+   */
+  template <typename Qs, typename Out>
+  void rotationMatrix(const MatrixBase<Qs>& q, const MatrixBase<Out>& out) const {
+    using T = typename Out::Scalar;
+    writable(out) = quaternionOf<T>(q).toRotationMatrix();
+  }
+
+  /** Writes \f$ V(d) = \int_0^1 R(\mathrm{Exp}(s d)) \, ds \f$ through \a out, 3 by 3: the left Jacobian of SO(3),
+   * \f$ J_r(-d) \f$, by which an ExtendedPose's exp() turns a vector's step.
+   */
+  template <typename D, typename Out>
+  void integratedRotation(const MatrixBase<D>& d, const MatrixBase<Out>& out) const {
+    using T = typename Out::Scalar;
+    const Matrix<T, 3, 1> reversed = -d.template cast<T>();
+    writable(out) = rightJacobian(reversed);
+  }
+
+  /** Writes through \a out, 3 by 3, the derivative of \f$ R(\mathrm{Exp}(\phi)) v \f$ in \f$ \phi \f$ at zero,
+   * \f$ -[v]_\times \f$: how a small rotation moves the vector \a v.
+   */
+  template <typename V, typename Out>
+  void actionJacobian(const MatrixBase<V>& v, const MatrixBase<Out>& out) const {
+    using T = typename Out::Scalar;
+    auto& o = writable(out);
+    o << T(0), T(v(2)), -T(v(1)), -T(v(2)), T(0), T(v(0)), T(v(1)), -T(v(0)), T(0);
   }
 
   /** \returns the unit quaternion of the rotation vector \a d, the exponential map of SO(3):
@@ -206,8 +316,7 @@ struct UnitQuaternion {
    */
   template <typename Path, Space S, typename X>
   static auto map(const S& space, X&& x) {
-    static_assert(std::derived_from<internal::PathTag<Path>, UnitQuaternion>,
-                  "the path does not name a UnitQuaternion block");
+    static_assert(internal::IsUnitQuaternion<internal::PathTag<Path>>, "the path does not name a UnitQuaternion block");
     static_assert(!internal::RunsThroughRepeated<Path>,
                   "the path runs through a Repeated block; name one repetition with map<Path>(space, x, element)");
     if constexpr (internal::RunsThroughRepeated<Path>) {
@@ -249,9 +358,9 @@ struct UnitQuaternion {
   static consteval bool namesRepetition() {
     using Tag = internal::PathTag<Path>;
     if constexpr (!std::is_same_v<internal::AsTagPath<Path>, TagPath<Tag>>) {
-      return std::derived_from<Tag, UnitQuaternion>;
+      return internal::IsUnitQuaternion<Tag>;
     } else if constexpr (internal::IsRepeated<Tag>) {
-      return std::derived_from<internal::RepeatedBlock<Tag>, UnitQuaternion>;
+      return internal::IsUnitQuaternion<internal::RepeatedBlock<Tag>>;
     } else {
       return false;
     }
@@ -271,9 +380,14 @@ struct UnitQuaternion {
   }
 
  public:
-  /** Spaces compare equal: a UnitQuaternion has no parameters. */
-  friend bool operator==(const UnitQuaternion&, const UnitQuaternion&) = default;
+  /** Spaces compare equal: a QUnitQuaternion has no parameters. */
+  friend bool operator==(const QUnitQuaternion&, const QUnitQuaternion&) = default;
 };
+
+/** \geometry_module \ingroup Geometry_Module
+ * \brief An attitude whose rotation vectors are plain numbers of radians: QUnitQuaternion with Eigen's dimensionless.
+ */
+using UnitQuaternion = QUnitQuaternion<>;
 
 }  // namespace Eigen
 

@@ -414,7 +414,19 @@ constexpr Scalar wrapValue(Scalar x) {
   }
   auto y = Scalar{};
   if (x >= Scalar(Lower - Period) && x < Scalar(upper + Period)) [[likely]] {
-    y = x < Scalar(Lower) ? x + Scalar(Period) : x - Scalar(Period);
+    // Not ?:, whose arms are distinct expression types for a scalar such as AutoDiffScalar.
+    if (x < Scalar(Lower)) {
+      y = x + Scalar(Period);
+    } else {
+      y = x - Scalar(Period);
+    }
+  } else if constexpr (requires {
+                         x.value();
+                         x.derivatives();
+                       }) {
+    // An AutoDiffScalar, which has no floor(): the count of periods is constant where it is differentiable.
+    using Value = std::remove_cvref_t<decltype(x.value())>;
+    y = x - Value(Period) * numext::floor((x.value() - Value(Lower)) / Value(Period));
   } else {
     y = x - Scalar(Period) * numext::floor((x - Scalar(Lower)) / Scalar(Period));
   }

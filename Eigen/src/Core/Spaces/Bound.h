@@ -20,6 +20,13 @@ namespace internal {
 template <typename S>
 consteval int slotCount();
 
+/** \internal What slot \a Slot of the difference space \a D of \a S measures once \a S is bound to \a Qs: the
+ * difference's own quantity where the slot of \a S had one already, and the bound one otherwise. A rotation's
+ * values are numbers and its differences radians, so a unit bound by position must not cross from one to the other.
+ */
+template <typename S, typename D, int Slot, auto... Qs>
+consteval auto differenceSlotQuantity();
+
 }  // namespace internal
 
 /** \ingroup Spaces_Module
@@ -53,11 +60,18 @@ class BoundSpace : public S {
     using Difference = DifferenceSpace<S>;
     static_assert(internal::slotCount<Difference>() == sizeof...(Qs),
                   "the difference space must have the leaves of the space, in order, to keep its quantities");
-    return BoundSpace<Difference, Qs...>{differenceSpace(unbound())};
+    return boundDifference<Difference>(std::make_index_sequence<sizeof...(Qs)>{});
   }
 
   /** Equal when the spaces are. */
   friend bool operator==(const BoundSpace&, const BoundSpace&) = default;
+
+ private:
+  template <typename Difference, std::size_t... Slot>
+  auto boundDifference(std::index_sequence<Slot...>) const {
+    return BoundSpace<Difference, internal::differenceSlotQuantity<S, Difference, int(Slot), Qs...>()...>{
+        differenceSpace(unbound())};
+  }
 };
 
 /** \ingroup Spaces_Module

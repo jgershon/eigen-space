@@ -10,22 +10,27 @@ showed they are [units-feasible]. EmrysFilter on typed matrices is where the wor
 it starts: mp-units (step 4), a typed invariant EKF on the fork alone (step 6), the rest of
 the refactor, and EmrysFilter follow the slice.
 
-## 6. A typed invariant EKF — not started
+## 6. A typed invariant EKF — in progress
 
-[additive-groups], [heterogeneous-results], [typed-blocks], [decomposition-boundaries]. The fork's
-next goal: an invariant extended Kalman filter (Barrau and Bonnabel 2017) for a body's attitude,
-velocity, and position from an inertial unit and landmarks seen from the body, written on the
-fork's typed matrices alone, without EmrysFilter, with every matrix in units. The state is
+[additive-groups], [lie-groups], [heterogeneous-results], [typed-blocks], [decomposition-boundaries].
+The fork's next goal: an invariant extended Kalman filter (Barrau and Bonnabel 2017) for a body's
+attitude, velocity, and position from an inertial unit and landmarks seen from the body, written on
+the fork's typed matrices alone, without EmrysFilter, with every matrix in units. The state is
 $SE_2(3)$ (Barrau and Bonnabel 2017; Hartley et al. 2020) and increments apply on the right,
 $X = \hat{X} \cdot \mathrm{Exp}(\xi)$, as EmrysFilter's `groups-prototype` decided; the error
 $\xi$ is in radians, metres per second, and metres. It needs part of step 5, done first and only as
 far as the filter does.
 
-- [ ] The group operations of `groups-prototype`, ported with its `ExtendedPose`: `LieGroup`,
-      `compose()`, `inverse()`, `identity()`, `exp()`, `log()`, `adjoint()`, and
-      `rightJacobian()`, and `UnitQuaternion`'s group members. On typed vectors: `exp()` of a
-      vector of the difference space returns one of the group, and `adjoint()` a matrix from the
-      difference space to itself, whose blocks carry the units of the rows over the columns.
+- [x] The group operations of `groups-prototype`, ported with its `ExtendedPose` [lie-groups]:
+      `LieGroup`, `Rotation`, `compose()`, `inverse()`, `identity()`, `exp()`, `log()`,
+      `adjoint()`, `rightJacobian()`, and `leftJacobian()`, on plain coordinates given the space and
+      typed given the group or a typed operand, with `plus()` and `minus()` typed too;
+      `QUnitQuaternion<Q>` with its differences in radians, and the group's members on it. Its
+      tests, checked against homogeneous matrices and the matrix exponential, and SE_2(3) in
+      radians, metres per second, and metres, with a step in feet converted. A bound space's
+      difference keeps the difference's own quantities where the space had them. AutoDiff's global
+      functions deduce their whole argument, so `exp<Pose>(d)` does not instantiate
+      `AutoDiffScalar<Pose>`, and a periodic value wraps under AutoDiff.
 - [ ] Blocks by tag, from step 5's tag addressing: `x(Path{})`, `m.block<RowPath, ColPath>()`, and
       their writable forms, typed by the subspaces named, enough to assemble the error dynamics
       and the measurement Jacobian block by block and to read the state's parts.

@@ -210,6 +210,15 @@ consteval int slotCount() {
   return int(std::tuple_size_v<SlotQuantities<S>>);
 }
 
+template <typename S, typename D, int Slot, auto... Qs>
+consteval auto differenceSlotQuantity() {
+  if constexpr (isBound(std::tuple_element_t<Slot, SlotQuantities<S>>::value)) {
+    return std::tuple_element_t<Slot, SlotQuantities<D>>::value;
+  } else {
+    return std::get<Slot>(std::tuple{Qs...});
+  }
+}
+
 /** \internal The slots of the block of type \a Tag in \a S, at any depth, and how many blocks of the type there are:
  * a binding by tag, or a path, names exactly one.
  */

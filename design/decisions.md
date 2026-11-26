@@ -26,6 +26,7 @@ records a choice. **Rule**, **Why**, **Rejected**, and **Where**; mechanism belo
 | [dual-spaces](#dual-spaces) | `Dual<S>` types the column side of a linear map; Hart's rules type every operation |
 | [heterogeneous-results](#heterogeneous-results) | Compatible operands combine as mp-units quantities do |
 | [additive-groups](#additive-groups) | Coordinate arithmetic is a space's own only in a group under addition |
+| [lie-groups](#lie-groups) | A group's operations are free functions, on plain coordinates or typed vectors |
 | [complex-scalars](#complex-scalars) | Units do not depend on the scalar being complex |
 | [typed-blocks](#typed-blocks) | A tag addresses a block; a block by offset needs a uniform axis |
 | [decomposition-boundaries](#decomposition-boundaries) | Kernels compute on the scalar buffer; decompositions type their factors at the API |
@@ -332,8 +333,8 @@ EmrysFilter's `groups-prototype` classifies them. On any other space, `UnitQuate
 with its own `plus()`, they do not compile, and `compose()`, `plus()`, and `minus()` are the
 operations; a product's inner spaces, a scaling, and `+=` and `-=` are held to the same rule, and a
 copy is not. A plain space, which the rules skip, is dimensionless and additive, since a vector of
-quaternions is dimensionless. `LieGroup`, `compose()`, `inverse()`, `identity()`, `exp()`, and
-`log()` come from that branch after the classification (roadmap step 6).
+quaternions is dimensionless. A group with its own product, such as an `ExtendedPose` of a heading
+and a vector, is not one even where its blocks add; its operations are [lie-groups].
 
 **Why.** A difference of two headings by `-` is right modulo the period; of two quaternions it is
 not a rotation. Requiring a linear space instead would reject a covariance over a state with a
@@ -345,6 +346,45 @@ type, as mp-units' `quantity_point` does: deferred.
 
 **Where.** `Eigen/src/Core/Spaces/Group.h`, `Rules.h`; `Eigen/src/Geometry/UnitQuaternion.h`;
 `failtest/space_rule_*.cpp`.
+
+## lie-groups
+
+*A group's operations are free functions, on plain coordinates or typed vectors.*
+
+**Rule.** A `LieGroup` is a Space with `compose()`, `inverse()`, `identity()`, `exp()`, `log()`,
+`adjoint()`, and `rightJacobian()`, its increments on the right, $x \boxplus \delta = x \cdot
+\mathrm{Exp}(\delta)$, as EmrysFilter's `groups-prototype` decided: `Linear` and `Periodic` under
+addition, `QUnitQuaternion`, `ExtendedPose` ($SE(3)$, $SE_2(3)$, $SE_k(3)$, and the planar poses
+under a heading), and a `Composite` or `Repeated` of groups block by block. Each operation is a free
+function in two forms. Given the space, `exp(space, d)`, it computes on plain coordinates and
+returns a plain vector, as `plus(space, x, d)` does. Given the group as a template argument,
+`exp<G>(d)`, or reading it from a typed operand's row space, `log(x)`, `compose(x, y)`,
+`adjoint(x)`, `plus(x, d)`, and `minus(x, y)`, it returns typed results: a value is a
+`QVector<G>`, a step a `QVector<DifferenceSpace<G>>`, and the adjoint and the Jacobians
+`QMatrix<D, Dual<D>>`, so a block of a vector's rows under the rotation's columns is in metres per
+radian. A typed operation assigns each operand into the space it expects first, so the assignment
+rule checks and converts its units [heterogeneous-results]. A rotation's closed forms read their
+steps in radians: `QUnitQuaternion<Q>`'s differences are `QLinear<Q, 3>` with `Q` Eigen's
+dimensionless or an mp-units unit of angle of magnitude one, its four coordinates are plain
+numbers, and a heading reads its step in its own unit through its period. A bound space's
+difference keeps, slot by slot, the difference's own quantity where the space's slot had one, so
+`In<>` on a pose binds its vectors and leaves the attitude's radians alone [leaf-quantities].
+
+**Why.** The group's operations are those of the field and of `groups-prototype`, and the free
+functions are the form `plus()` and `minus()` already have. A typed result is what makes a filter
+on a group typed at all: $\mathrm{Ad}_X$ and $J_r$ have blocks of four different units in an
+inertial filter, and only the spaces of the difference record which. Radians are what the closed
+forms compute in, so a step in degrees would be silently wrong rather than converted.
+
+**Rejected.** Members on each space, `Pose::exp(d)`: generic code would need the space's type
+where a free function finds it from the operand. Other names, `groupExp()`, to avoid AutoDiff's
+`exp()`: the field's names are the API, and AutoDiff's global functions now deduce their whole
+argument, so an explicit `exp<Pose>(d)` leaves them out. A unit quaternion that converts degrees:
+a rotation in degrees is unusual enough that the error is the better default.
+
+**Where.** `Eigen/src/Core/Spaces/Group.h`, `LieGroup.h`, `Bound.h`;
+`Eigen/src/Geometry/UnitQuaternion.h`, `ExtendedPose.h`; `test/spaces_group.cpp`, `test/units.cpp`;
+`failtest/units_quaternion_in_degrees.cpp`, `failtest/units_group_step_wrong_units.cpp`.
 
 ## complex-scalars
 

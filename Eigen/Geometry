@@ -50,6 +50,7 @@
 #include "src/Geometry/AlignedBox.h"
 #include "src/Geometry/Umeyama.h"
 #include "src/Geometry/UnitQuaternion.h"
+#include "src/Geometry/ExtendedPose.h"
 
 #ifndef EIGEN_VECTORIZE_GENERIC
 // TODO(rmlarsen): Make these work with generic vectorization if possible.

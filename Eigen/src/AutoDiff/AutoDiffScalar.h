@@ -406,13 +406,27 @@ struct ScalarBinaryOpTraits<typename DerType::Scalar, AutoDiffScalar<DerType>, B
   typedef AutoDiffScalar<DerType> ReturnType;
 };
 
-#define EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY(FUNC, CODE)                                              \
-  template <typename DerType>                                                                        \
-  inline auto FUNC(const Eigen::AutoDiffScalar<DerType>& x) {                                        \
-    using namespace Eigen;                                                                           \
-    typedef typename Eigen::internal::traits<Eigen::internal::remove_all_t<DerType>>::Scalar Scalar; \
-    EIGEN_UNUSED_VARIABLE(sizeof(Scalar));                                                           \
-    CODE;                                                                                            \
+namespace internal {
+template <typename DerType>
+std::true_type autoDiffScalarOf(const AutoDiffScalar<DerType>*);
+std::false_type autoDiffScalarOf(const void*);
+
+// An AutoDiffScalar. The global functions below deduce their whole argument and require one, rather than deducing the
+// derivative type of an AutoDiffScalar<DerType> parameter: a call that names its template argument for another
+// overload of the same name, such as exp<Pose>(d) of Spaces/LieGroup.h, then fails to convert d to a Pose and drops
+// them, where the conversion to AutoDiffScalar<Pose> would instantiate that class and fail to compile.
+template <typename T>
+concept IsAutoDiffScalar = decltype(autoDiffScalarOf(static_cast<const T*>(nullptr)))::value;
+}  // namespace internal
+
+#define EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY(FUNC, CODE)      \
+  template <typename AutoDiffType>                           \
+    requires Eigen::internal::IsAutoDiffScalar<AutoDiffType> \
+  inline auto FUNC(const AutoDiffType& x) {                  \
+    using namespace Eigen;                                   \
+    typedef typename AutoDiffType::Scalar Scalar;            \
+    EIGEN_UNUSED_VARIABLE(sizeof(Scalar));                   \
+    CODE;                                                    \
   }
 
 template <typename DerType>
