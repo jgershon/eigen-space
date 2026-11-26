@@ -7,55 +7,50 @@ finished step becomes a row of the Done table.
 
 The fork's first goal was to show that units in Eigen's own types are feasible; step 3's slice
 showed they are [units-feasible]. EmrysFilter on typed matrices is where the work leads, not where
-it starts: mp-units, the rest of the refactor, and EmrysFilter follow the slice.
+it starts: mp-units (step 4), a typed invariant EKF on the fork alone (step 6), the rest of
+the refactor, and EmrysFilter follow the slice.
 
-## 4. Units on mp-units — in progress
+## 6. A typed invariant EKF — not started
 
-[mp-units-dependency], [leaf-quantities], [heterogeneous-results], [additive-groups],
-[complex-scalars]. Before step 5, since it changes what the slice's rules compare: the units become
-mp-units' own, with conversion, and coordinate arithmetic is checked against the space's group.
+[additive-groups], [heterogeneous-results], [typed-blocks], [decomposition-boundaries]. The fork's
+next goal: an invariant extended Kalman filter (Barrau and Bonnabel 2017) for a body's attitude,
+velocity, and position from an inertial unit and landmarks seen from the body, written on the
+fork's typed matrices alone, without EmrysFilter, with every matrix in units. The state is
+$SE_2(3)$ (Barrau and Bonnabel 2017; Hartley et al. 2020) and increments apply on the right,
+$X = \hat{X} \cdot \mathrm{Exp}(\xi)$, as EmrysFilter's `groups-prototype` decided; the error
+$\xi$ is in radians, metres per second, and metres. It needs part of step 5, done first and only as
+far as the filter does.
 
-- [x] `Eigen/Units`: mp-units as the dependency of spaces with units, `internal::units_backend`
-      declared in Core and defined there, leaves whose first argument is a quantity spec, a unit, or
-      a reference, and `In<>` binding units to tags by dimension or by tag, kept by position; the
-      tests and failtests on mp-units' units, in place of the test unit types. Sums and products
-      compare runs of compatible quantities in equivalent units, so metres as a unit and as a
-      reference agree and nothing yet converts.
-- [x] Conversion: sums and differences in the common unit, assignment and construction converting
-      into the destination, a product's inner coordinates converted to one factor c, and
-      `in<>()`; no conversion generated where the units agree. Two run lists are refined to one
-      partition before they are compared, so blocks that fall differently still match. A
-      conversion is a coefficient-wise product with a nullary of row and column factors, relabeled;
-      a converting sum is evaluated as the sum of its converted operands, and `operator*` converts
-      the right operand. Not yet: a conversion across a repeated block of several units, and the
-      check that an integer `Scalar` converts by an integral factor.
-- [x] Results of operands with different tags: shared tags kept and rebound, the untagged leaves of
-      the common quantities otherwise; a product's row space scaled by its inner unit keeps its tags
-      for a ratio of units and drops them for a quantity with a dimension.
-- [x] Coordinate arithmetic on groups under addition only: the classification of EmrysFilter's
-      `groups-prototype` in `Spaces/Group.h`, held by sums, scalings, `+=` and `-=`, and a product's
-      inner spaces, with failtests for a difference and a scaling of quaternions, and a covariance
-      over the difference space of a pose with a heading. The plain fast path is now dimensionless
-      and additive, since a vector of quaternions is dimensionless.
-- [ ] The group operations of `groups-prototype`: `LieGroup`, `compose()`, `inverse()`,
-      `identity()`, `exp()`, `log()`, and `UnitQuaternion`'s group members. No rule needs them; the
-      error of the rule above names them as what to use.
-- [x] Complex scalars: `adjoint()` swapping the spaces, and the character of a leaf's spec checked
-      against `Scalar`. Negation, the conjugate, `real()`, `imag()`, and `abs()` keep their operand's
-      spaces; any other unary operation still has dimensionless ones.
-- [x] mp-units quantities as scalars: `dt * v` with `dt` in seconds, `v * dt`, and `x / dt`, which
-      multiply the row space by what the quantity measures (`Eigen/src/Units/Scalars.h`).
+- [ ] The group operations of `groups-prototype`, ported with its `ExtendedPose`: `LieGroup`,
+      `compose()`, `inverse()`, `identity()`, `exp()`, `log()`, `adjoint()`, and
+      `rightJacobian()`, and `UnitQuaternion`'s group members. On typed vectors: `exp()` of a
+      vector of the difference space returns one of the group, and `adjoint()` a matrix from the
+      difference space to itself, whose blocks carry the units of the rows over the columns.
+- [ ] Blocks by tag, from step 5's tag addressing: `x(Path{})`, `m.block<RowPath, ColPath>()`, and
+      their writable forms, typed by the subspaces named, enough to assemble the error dynamics
+      and the measurement Jacobian block by block and to read the state's parts.
+- [ ] The typed `Identity()` and `Zero()` of a matrix from one space to another, including the
+      identity block from velocity to the time derivative of position, whose entries are one.
+- [ ] `skew<ColSpace>(v)`: the matrix of $\delta \mapsto v \times \delta$ with rows in $v$'s
+      space and columns dual to `ColSpace`. mp-units converts rad x m to m only explicitly (rad/s x
+      m to m/s implicitly), so naming the column space, the attitude's radians, is that explicit
+      step: $\partial (R^\top (l - p)) / \partial \phi$ is in metres per radian.
+- [ ] A typed `llt()` and its `solve()` on a symmetric positive-definite matrix from step 5's factor
+      spaces, for the innovation covariance $S$ and the gain $K = P H^\top S^{-1}$, and for the
+      consistency statistic $e^\top P^{-1} e$, dimensionless.
+- [ ] The error dynamics $A$ with rows in the difference space per second, its discretization
+      $\Phi = I + A\,\Delta t + \tfrac12 (A\,\Delta t)^2$ with $\Delta t$ an mp-units
+      quantity, and the process noise from the gyroscope's and the accelerometer's noise densities,
+      also quantities.
+- [ ] The filter, as a test: it simulates a body from a heading known to 0.6 rad, as the
+      `groups-prototype` example does, runs the filter on typed matrices and the same filter on
+      plain ones, and checks that they agree to rounding and that the filter's errors are
+      consistent with its covariances by their normalized squared error. The gyroscope's bias is
+      left out.
 
-Done when: the step 3 subset and the failtests pass, the typed prediction of step 3 runs in SI and
-in feet with the same values after conversion, and the compile-time measurement of step 3 is
-repeated with any regression explained.
-
-Measured after the items above, clang 21 at -O3 and one job, against the same baseline: run in
-sequence, `basicstuff` 40.9 s before and 29.8 s after, `product_large` 265.0 s and 182.0 s, a
-machine whose load fell between the runs; interleaved, `basicstuff` 27.3 s and 27.1 s before against
-27.8 s and 27.2 s after, no change beyond noise. Plain code still meets the rules through one check
-of plain spaces. A typed translation unit pays for mp-units and the rules: `units_1`, which includes
-Eigen/Units and exercises every rule, compiles in 8.5 s against 2.2 s for the plain `qmatrix_1`.
+Done when: the filter's test passes under clang with no plain test changed, the failtests of each
+item fail for the right reason, and a failtest shows the filter's update with a Jacobian in the
+wrong units (metres where the attitude's block needs metres per radian) not compiling.
 
 ## 5. Shape on spaces, the rest — not started
 
@@ -68,7 +63,7 @@ and decomposition the slice did not reach.
 - [ ] Tag addressing: `m(Path{}, Path{})`, `m.rows<Path>()`, `m.block<RowPath, ColPath>()`, the
       uniform-axis rule for blocks by offset, and `untyped()`; idx() and diffIdx() go.
 - [ ] The factor spaces of Cholesky, LU, QR, SVD, and the eigensolvers.
-- [ ] A fixed-size Kalman example whose every matrix is typed.
+- [ ] A fixed-size Kalman example whose every matrix is typed, beside step 6's filter.
 
 Done when: `buildtests` and `check` pass with no test changed, the failtests fail for the right
 reason, the Kalman example matches the same filter on plain matrices to rounding, and the
@@ -102,3 +97,4 @@ its state, measurement, and gain.
 | 1 | The continuous spaces of EmrysFilter in Core, the reset in `Eigen/Spaces`, `UnitQuaternion` in Geometry, AutoDiff promoted, the bibliography page | [continuous-spaces-only], [autodiff-supported], [bibliography-page], the thirteen in spaces-decisions.md |
 | 2 | The unit on every leaf (`QLinear`, `QPeriodic`, the Q angles, with the plain names as dimensionless aliases), the `Unit` concept and `dimensionless`, `Dual`, `unitAt()` and `unitOf()`, and mp-units fetched for the tests | [mandatory-units], [dual-spaces] |
 | 3 | The feasibility slice: `QMatrix` and `QArray` primary with `Matrix` and `Array` as aliases, the space rules of sums, products, transposes, and assignments, a typed covariance prediction, and the compile-time measurement; the outcome is go | [spaces-are-shape], [q-names], [space-first], [dual-spaces], [units-feasible] |
+| 4 | Units on mp-units: `Eigen/Units`, leaves of quantity specs, units, or references, `In<>` and `bind<>()`, conversion as mp-units converts, results of operands with different tags, coordinate arithmetic on groups under addition only, complex scalars, and quantities as scalars | [mp-units-dependency], [leaf-quantities], [heterogeneous-results], [additive-groups], [complex-scalars] |

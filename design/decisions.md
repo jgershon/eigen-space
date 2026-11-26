@@ -64,7 +64,7 @@ dimensionless spaces, so it loses its units silently.
 **Rejected.** No-go, a units layer beside Eigen's types as EmrysFilter has now: it types the spaces
 but not the matrices, so a covariance prediction with its units wrong still compiles.
 
-**Where.** `design/roadmap.md` step 4; `test/qmatrix.cpp`, `test/units.cpp`,
+**Where.** `test/qmatrix.cpp`, `test/units.cpp`,
 `failtest/space_rule_*.cpp`, `failtest/units_*.cpp`.
 
 ## cxx20-baseline
@@ -333,7 +333,7 @@ with its own `plus()`, they do not compile, and `compose()`, `plus()`, and `minu
 operations; a product's inner spaces, a scaling, and `+=` and `-=` are held to the same rule, and a
 copy is not. A plain space, which the rules skip, is dimensionless and additive, since a vector of
 quaternions is dimensionless. `LieGroup`, `compose()`, `inverse()`, `identity()`, `exp()`, and
-`log()` come from that branch after the classification (roadmap step 4).
+`log()` come from that branch after the classification (roadmap step 6).
 
 **Why.** A difference of two headings by `-` is right modulo the period; of two quaternions it is
 not a rotation. Requiring a linear space instead would reject a covariance over a state with a
