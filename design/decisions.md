@@ -17,6 +17,7 @@ records a choice. **Rule**, **Why**, **Rejected**, and **Where**; mechanism belo
 | Decision | One line |
 |---|---|
 | [cxx20-baseline](#cxx20-baseline) | Supported headers compile as C++20 |
+| [units-feasible](#units-feasible) | The feasibility slice is a go: a space can be Eigen's shape parameter |
 | [spaces-are-shape](#spaces-are-shape) | A space replaces Rows, Cols, MaxRows, and MaxCols; the integers are derived |
 | [q-names](#q-names) | `QMatrix`, `QArray`, `QVector`; `Matrix` and its family are aliases on `Linear` spaces |
 | [space-first](#space-first) | Spaces first, then the scalar, which is the representation type and defaults to `double` |
@@ -32,6 +33,39 @@ records a choice. **Rule**, **Why**, **Rejected**, and **Where**; mechanism belo
 | [autodiff-supported](#autodiff-supported) | AutoDiff is a supported module, and `Eigen/Spaces` builds on it |
 | [public-space-helpers](#public-space-helpers) | What EmrysFilter needs from the spaces is public API |
 | [bibliography-page](#bibliography-page) | The papers the headers cite resolve in Eigen's own documentation |
+
+## units-feasible
+
+*The feasibility slice is a go: a space can be Eigen's shape parameter.*
+
+**Rule.** The refactor continues past the slice (roadmap steps 3 and 4) to the rest of Eigen's
+expressions and decompositions (step 5). Recorded 2026-11-25.
+
+**Why.** Each of step 3's criteria held, and held again on mp-units after step 4:
+
+- `Matrix` and its family as aliases of `QMatrix` on `Linear` spaces left a representative subset of
+  51 tests passing with no test changed; deduction and partial specialization on
+  `Matrix<Scalar, Rows, Cols, ...>` survive the alias, and one header (`AlignedVector3`) changed.
+- The rules reject what they should: 255 failtests pass, the space rules' among them, each failing
+  for its own reason.
+- `P = F * P * F.transpose() + Q` typed in metres and metres per second matches the plain
+  computation to rounding, and run in feet then converted, matches it in metres.
+- Plain code pays nothing measurable. With clang 21 at -O3 and one job, `basicstuff` took 29.2 s
+  before the slice and 31.5 s and 29.6 s after its first item, and `product_large` 196.4 s against
+  194.9 s and 198.9 s; after step 4, timed alternately against the same baseline, `basicstuff`
+  took 27.3 s and 27.1 s before and 27.8 s and 27.2 s after. Plain operands meet the rules through
+  one check of their spaces. A translation unit with units pays for mp-units and the rules:
+  `units_1` compiles in 8.5 s against 2.2 s for the plain `qmatrix_1`.
+
+The risks carried forward: typed code is checked under clang only, since the MSVC build here has
+no mp-units; and until step 5, a block, map, or other unary expression of a typed operand has
+dimensionless spaces, so it loses its units silently.
+
+**Rejected.** No-go, a units layer beside Eigen's types as EmrysFilter has now: it types the spaces
+but not the matrices, so a covariance prediction with its units wrong still compiles.
+
+**Where.** `design/roadmap.md` step 4; `test/qmatrix.cpp`, `test/units.cpp`,
+`failtest/space_rule_*.cpp`, `failtest/units_*.cpp`.
 
 ## cxx20-baseline
 

@@ -5,44 +5,9 @@ The work in order, written for contributors; what the fork does and why is in
 roadmap: only work not done, a step ends with "Done when", step numbers are never reused, and a
 finished step becomes a row of the Done table.
 
-The fork's first goal is to show that units in Eigen's own types are feasible. EmrysFilter on typed
-matrices is where the work leads, not where it starts: step 3 is a vertical slice that decides
-whether the design holds, and the rest of the refactor, mp-units, and EmrysFilter follow it.
-
-## 3. Feasibility slice — in progress
-
-[spaces-are-shape], [q-names], [space-first], [dual-spaces]. The least of the refactor that answers
-whether a space can be Eigen's shape parameter: the alias that keeps every existing spelling, the
-typing of the operations a covariance prediction needs, and what it costs to compile.
-
-- [x] `QMatrix` and `QArray` as the primary templates; `Matrix`, `Array`, `Vector`, `RowVector`,
-      and the typedefs as aliases; the integer constants derived from the spaces, which
-      `internal::spaces_of` reports, and the plain-type helpers in `XprHelper.h` building plain
-      objects from spaces. Existing tests pass unchanged, which is the check that deduction and
-      partial specialization on `Matrix<Scalar, Rows, Cols, ...>` survive the alias. One header
-      changed to fit: `AlignedVector3`'s traits, which borrowed a 3-row `Matrix` with room for 4.
-- [x] The space rules in `CwiseBinaryOp` (sum and difference: equal spaces), `Product` (the inner
-      spaces dual to each other), and `Transpose`, each with a failtest for a mismatched unit.
-      Assignment is checked too, since a typed prediction means nothing if its result can land in
-      any matrix, and so is a cwise product of two typed operands; `Spaces/Rules.h` compares
-      spaces as runs of one unit, so plain operands skip the rules at the cost of one check.
-- [x] A typed covariance prediction, `P = F * P * F.transpose() + Q`, on a position and velocity
-      state with units in metres and metres per second, checked against the same computation on
-      plain matrices: in `test/qmatrix.cpp`, and over mp-units' SI units in
-      `test/spaces_units.cpp`.
-- [x] A compile-time measurement: `basicstuff` and `product_large` timed before and after. After
-      the first item, with clang 21 at -O3 and one job: `basicstuff` 29.2 s before, 31.5 s and
-      29.6 s after; `product_large` 196.4 s before, 194.9 s and 198.9 s after; no change beyond
-      noise. With the space rules in, timed back to back against the same baseline on a busier
-      machine: `basicstuff` 39.3 s before, 33.4 s after; `product_large` 227.8 s before, 232.6 s
-      after (+2%, within the run-to-run spread). Plain operands meet the rules through one check
-      of their Linear spaces, which is why the cost does not show.
-
-Done when: a representative subset of the tests passes with no test changed (the slice is an
-experiment; the whole suite is step 5's bar), the failtests fail for the right reason, the typed
-prediction matches the plain one to rounding, and the compile-time measurement is
-recorded here with any regression explained. The outcome, go or no-go with the reasons, is recorded
-in decisions.md before step 5 starts.
+The fork's first goal was to show that units in Eigen's own types are feasible; step 3's slice
+showed they are [units-feasible]. EmrysFilter on typed matrices is where the work leads, not where
+it starts: mp-units, the rest of the refactor, and EmrysFilter follow the slice.
 
 ## 4. Units on mp-units — in progress
 
@@ -136,3 +101,4 @@ its state, measurement, and gain.
 | 0 | C++20 baseline | [cxx20-baseline], [q-names] |
 | 1 | The continuous spaces of EmrysFilter in Core, the reset in `Eigen/Spaces`, `UnitQuaternion` in Geometry, AutoDiff promoted, the bibliography page | [continuous-spaces-only], [autodiff-supported], [bibliography-page], the thirteen in spaces-decisions.md |
 | 2 | The unit on every leaf (`QLinear`, `QPeriodic`, the Q angles, with the plain names as dimensionless aliases), the `Unit` concept and `dimensionless`, `Dual`, `unitAt()` and `unitOf()`, and mp-units fetched for the tests | [mandatory-units], [dual-spaces] |
+| 3 | The feasibility slice: `QMatrix` and `QArray` primary with `Matrix` and `Array` as aliases, the space rules of sums, products, transposes, and assignments, a typed covariance prediction, and the compile-time measurement; the outcome is go | [spaces-are-shape], [q-names], [space-first], [dual-spaces], [units-feasible] |
