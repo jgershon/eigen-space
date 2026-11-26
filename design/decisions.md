@@ -409,12 +409,17 @@ the same split keeps one rule for real and complex matrices.
 
 *A tag addresses a block; a block by offset needs a uniform axis.*
 
-**Rule.** A tag or tag path is an index argument: `x(Position{})`, `P(Position{}, Velocity{})`,
-and the compile-time forms `m.rows<Path>()`, `m.cols<Path>()`, and `m.block<RowPath, ColPath>()`
-resolve the path against the matrix's own row or column space, as EmrysFilter's `idx<Path>()` did
-against a space the caller passed, and return blocks typed by the subspaces named. A covariance's
-row space is a difference space, so the same path names the difference block on it and the value
-block on a mean; `idx()` and `diffIdx()` have no successor. A block at run-time offsets,
+**Rule.** A tag or tag path takes the place of a block's size in Eigen's own block names:
+`x.segment<Position>()`, `m.middleRows<Path>()`, `m.middleCols<Path>()`, and
+`m.block<RowPath, ColPath>()` resolve the path against the matrix's own row or column space, as
+EmrysFilter's `idx<Path>()` did against a space the caller passed, and return blocks typed by the
+subspaces named, with the units the matrix's spaces bind to them; a block of a dual is the dual of
+the block. They are writable where the matrix is, and a write is checked and converted as an
+assignment is. A covariance's row space is a difference space, whose tagged blocks keep their tags
+as `DifferenceOf<Tag>`, the block's difference space under its tag, so the same path names the
+difference block on it and the value block on a mean; `idx()` and `diffIdx()` have no successor.
+The index-argument form, `x(Position{})` and `P(Position{}, Velocity{})`, is not provided yet:
+`operator()` takes index lists, and a tag would have to be told apart from one. A block at run-time offsets,
 `block(i, j, p, q)` and the `segment`, `head`, and `tail` family, is allowed on an axis whose
 coordinates share one unit and returns a `Linear` of that unit, so every plain matrix behaves as
 today; on an axis of mixed units it does not compile. `m.untyped()` is the explicit view with every
@@ -428,9 +433,14 @@ Eigen's own code and tests untouched.
 
 **Rejected.** Untyping every run-time block silently. Forbidding run-time blocks on typed spaces
 altogether, which would exclude `Repeated` blocks of one unit. Keeping `idx()` beside the typed
-forms, which would keep the untyped index range in user code.
+forms, which would keep the untyped index range in user code. `m.rows<Path>()` and
+`m.cols<Path>()`: every plain object and most expressions declare `rows()` and `cols()`, which hide
+a template of that name. Difference spaces without tags, as EmrysFilter's are: a covariance's
+attitude block could not be named.
 
-**Where.** `Eigen/src/Core/Block.h`, `DenseBase.h`, `IndexedView.h`, `Spaces/TagPath.h`.
+**Where.** `Eigen/src/Core/MatrixBase.h`, `Spaces/TypedBlocks.h`, `Spaces/TagPath.h` (`DifferenceOf`),
+`Spaces/Composite.h`; `test/units.cpp`, `failtest/units_block_wrong_units.cpp`; still to come,
+`Eigen/src/Core/Block.h`, `DenseBase.h`, `IndexedView.h` for blocks by offset.
 
 ## decomposition-boundaries
 

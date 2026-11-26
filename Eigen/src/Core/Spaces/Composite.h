@@ -14,6 +14,12 @@ namespace Eigen {
 
 namespace internal {
 
+/** \internal The difference space of \a Block as a block of a Composite or Repeated: its own difference space, wrapped
+ * in DifferenceOf where that would lose \a Block's tag (Spaces/TagPath.h).
+ */
+template <typename Block>
+struct DifferenceBlockOf;
+
 /** \internal How PartStorage keeps \a Part: in a one-element tuple if it has state, else not at all. */
 template <typename Part>
 using StoredPart = std::conditional_t<std::is_empty_v<Part>, std::tuple<>, std::tuple<Part>>;
@@ -231,14 +237,16 @@ class Composite : private internal::PartStorage<Blocks...> {
                                        });
   }
 
-  /** The composite of the blocks' difference spaces, with their sizes. It keeps no tags. A
-   * composite of linear blocks is its own difference space.
+  /** The composite of the blocks' difference spaces, with their sizes. A block whose difference space is another type
+   * keeps its tag through DifferenceOf, so that a path names the same block in a covariance's rows as in a mean
+   * (design/decisions.md [typed-blocks]). A composite of linear blocks is its own difference space.
    */
-  Composite<DifferenceSpace<Blocks>...> difference() const
+  auto difference() const
     requires(!(isLinear<Blocks> && ...))
   {
     return [&]<std::size_t... Idx>(std::index_sequence<Idx...>) {
-      return Composite<DifferenceSpace<Blocks>...>{differenceSpace(block<Idx>())...};
+      return Composite<typename internal::DifferenceBlockOf<Blocks>::type...>{
+          internal::DifferenceBlockOf<Blocks>::make(block<Idx>())...};
     }(std::make_index_sequence<BlockCount>{});
   }
 
@@ -372,11 +380,14 @@ class Repeated {
     });
   }
 
-  /** The block's difference space, repeated as many times. A repeated linear block is its own. */
-  Repeated<DifferenceSpace<Block>, MaxCount_> difference() const
+  /** The block's difference space, repeated as many times, keeping its tag as Composite's does. A repeated linear block
+   * is its own.
+   */
+  auto difference() const
     requires(!isLinear<Block>)
   {
-    return Repeated<DifferenceSpace<Block>, MaxCount_>{differenceSpace(m_block), m_count};
+    using Difference = typename internal::DifferenceBlockOf<Block>::type;
+    return Repeated<Difference, MaxCount_>{internal::DifferenceBlockOf<Block>::make(m_block), m_count};
   }
 
   /** Equal when every stored parameter and size is; a fixed-size Repeated is always equal. */

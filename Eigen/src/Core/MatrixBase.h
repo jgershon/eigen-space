@@ -70,6 +70,7 @@ class MatrixBase : public DenseBase<Derived> {
   using Base::RowsAtCompileTime;
   using Base::SizeAtCompileTime;
 
+  using Base::block;
   using Base::coeff;
   using Base::coeffRef;
   using Base::cols;
@@ -77,7 +78,10 @@ class MatrixBase : public DenseBase<Derived> {
   using Base::derived;
   using Base::eval;
   using Base::lazyAssign;
+  using Base::middleCols;
+  using Base::middleRows;
   using Base::rows;
+  using Base::segment;
   using Base::size;
   using Base::operator-;
   using Base::operator+=;
@@ -164,6 +168,64 @@ class MatrixBase : public DenseBase<Derived> {
   template <typename RowSpace, typename ColSpace = typename internal::spaces_of<Derived>::ColSpace>
   EIGEN_DEVICE_FUNC auto in() const {
     return internal::convertSpaces<RowSpace, ColSpace>(derived());
+  }
+
+  /** \returns the block of this matrix whose rows the path \a RowPath names in its row space and whose columns
+   * \a ColPath names in its column space, typed by those subspaces with their units: <tt>P.block<Velocity,
+   * Attitude>()</tt> of a covariance. A path is a tag or a TagPath, and the spaces must be of fixed size. The block is
+   * writable where this matrix is, and an assignment into it is checked and converted by the space rules
+   * (design/decisions.md [typed-blocks]). */
+  template <typename RowPath, typename ColPath>
+  EIGEN_DEVICE_FUNC auto block() {
+    return internal::typedBlock<RowPath, ColPath>(derived());
+  }
+  /** The read-only block<RowPath, ColPath>(). */
+  template <typename RowPath, typename ColPath>
+  EIGEN_DEVICE_FUNC auto block() const {
+    return internal::typedConstBlock<RowPath, ColPath>(derived());
+  }
+  /** \returns the rows that the path \a Path names in the row space, every column, typed as block() is. */
+  template <typename Path>
+  EIGEN_DEVICE_FUNC auto middleRows() {
+    return internal::typedBlock<Path, internal::WholeSpace>(derived());
+  }
+  /** The read-only middleRows<Path>(). */
+  template <typename Path>
+  EIGEN_DEVICE_FUNC auto middleRows() const {
+    return internal::typedConstBlock<Path, internal::WholeSpace>(derived());
+  }
+  /** \returns the columns that the path \a Path names in the column space, every row, typed as block() is. */
+  template <typename Path>
+  EIGEN_DEVICE_FUNC auto middleCols() {
+    return internal::typedBlock<internal::WholeSpace, Path>(derived());
+  }
+  /** The read-only middleCols<Path>(). */
+  template <typename Path>
+  EIGEN_DEVICE_FUNC auto middleCols() const {
+    return internal::typedConstBlock<internal::WholeSpace, Path>(derived());
+  }
+  /** \returns the coordinates of this vector that the path \a Path names in its space: <tt>x.segment<Velocity>()</tt>
+   * of a state, typed as block() is. */
+  template <typename Path>
+  EIGEN_DEVICE_FUNC auto segment() {
+    static_assert(IsVectorAtCompileTime,
+                  "segment<Path>() is for vectors; use middleRows<Path>() or middleCols<Path>()");
+    if constexpr (ColsAtCompileTime == 1) {
+      return internal::typedBlock<Path, internal::WholeSpace>(derived());
+    } else {
+      return internal::typedBlock<internal::WholeSpace, Path>(derived());
+    }
+  }
+  /** The read-only segment<Path>(). */
+  template <typename Path>
+  EIGEN_DEVICE_FUNC auto segment() const {
+    static_assert(IsVectorAtCompileTime,
+                  "segment<Path>() is for vectors; use middleRows<Path>() or middleCols<Path>()");
+    if constexpr (ColsAtCompileTime == 1) {
+      return internal::typedConstBlock<Path, internal::WholeSpace>(derived());
+    } else {
+      return internal::typedConstBlock<internal::WholeSpace, Path>(derived());
+    }
   }
 
   template <typename OtherDerived>

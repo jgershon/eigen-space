@@ -498,6 +498,12 @@ template <typename Func, typename Dst, typename Src>
 struct assignment_spaces;
 template <typename ToRow, typename ToCol, typename Xpr>
 auto convertSpaces(const Xpr& xpr);
+// Blocks by tag, in Spaces/TypedBlocks.h; WholeSpace, the path of a whole axis, in Spaces/TagPath.h.
+struct WholeSpace;
+template <typename RowPath, typename ColPath, typename Derived>
+auto typedBlock(Derived& m);
+template <typename RowPath, typename ColPath, typename Derived>
+auto typedConstBlock(const Derived& m);
 template <typename Lhs, typename Rhs>
 struct product_rhs_conversion;
 

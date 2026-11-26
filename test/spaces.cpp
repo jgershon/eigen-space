@@ -565,8 +565,8 @@ void values_and_differences_normalize_separately() {
 }
 
 // DifferenceSpace<> is the centered period for a periodic space, the space itself for Linear, a
-// space's own difference() for a user space, and a tagless Composite of the blocks' difference
-// spaces; a resizable space's difference space carries its sizes, and
+// space's own difference() for a user space, and a Composite of the blocks' difference spaces, a
+// tagged block's as DifferenceOf of its tag; a resizable space's difference space carries its sizes, and
 // normalizing differences is normalizing values in it.
 void differences_live_in_a_difference_space() {
   static_assert(std::is_same_v<DifferenceSpace<Degrees360<2>>, Degrees180<2>>);
@@ -574,7 +574,9 @@ void differences_live_in_a_difference_space() {
   static_assert(std::is_same_v<DifferenceSpace<RadiansPi<>>, RadiansPi<>>);
   static_assert(std::is_same_v<DifferenceSpace<Position>, Position>);
   static_assert(std::is_same_v<DifferenceSpace<UserDegrees>, UserDegreeDifferences>);
-  static_assert(std::is_same_v<DifferenceSpace<State>, Composite<Position, RadiansPi<>, Range>>);
+  static_assert(std::is_same_v<DifferenceSpace<State>, Composite<Position, DifferenceOf<Heading>, Range>>);
+  static_assert(std::is_base_of_v<RadiansPi<>, DifferenceOf<Heading>> &&
+                std::is_same_v<DifferenceSpace<DifferenceOf<Heading>>, DifferenceOf<Heading>>);
   static_assert(std::is_same_v<DifferenceSpace<Composite<Position, Altitude>>, Composite<Position, Altitude>>);
   static_assert(std::is_empty_v<DifferenceSpace<State>>);
 

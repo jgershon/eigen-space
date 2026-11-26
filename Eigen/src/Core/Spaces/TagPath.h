@@ -95,6 +95,62 @@ inline constexpr bool IsUntagged<Composite<Blocks...>>{true};
 template <typename Block, int MaxCount>
 inline constexpr bool IsUntagged<Repeated<Block, MaxCount>>{true};
 
+}  // namespace internal
+
+/** \ingroup Spaces_Module
+ * \brief The difference space of the tagged block \a Block, answering to \a Block's tag.
+ *
+ * A Composite's difference space keeps its blocks' tags (design/decisions.md [typed-blocks]): a block that is its own
+ * difference space keeps its type, and any other tagged block, such as <tt>struct Heading : RadiansPi<> {}</tt> or
+ * <tt>struct Attitude : UnitQuaternion {}</tt>, becomes <tt>DifferenceOf<Heading></tt>, which is the block's difference
+ * space and which a path names by \a Block. So <tt>P.block<Heading, Heading>()</tt> of a covariance over
+ * <tt>DifferenceSpace<State></tt> is the heading's variance, as <tt>x.rows<Heading>()</tt> of a mean is its value.
+ */
+template <typename Block>
+struct DifferenceOf : DifferenceSpace<Block> {
+  /** The difference space of \a Block. */
+  using Base = DifferenceSpace<Block>;
+  /** The tagged block this is the difference space of. */
+  using ValueBlock = Block;
+
+  using Base::Base;
+  DifferenceOf() = default;
+
+  /** The difference space \a base of \a Block, with its sizes, under \a Block's tag. */
+  explicit DifferenceOf(Base base) : Base{std::move(base)} {}
+
+  /** Its own difference space, as \a Base is. */
+  DifferenceOf difference() const
+    requires internal::HasDifference<Base>
+  {
+    static_assert(std::is_same_v<DifferenceSpace<Base>, Base>, "a difference space must be its own difference space");
+    return *this;
+  }
+
+  /** Equal when the difference spaces are. */
+  friend bool operator==(const DifferenceOf&, const DifferenceOf&) = default;
+};
+
+namespace internal {
+
+template <typename Block>
+struct DifferenceBlockOf {
+  using type = DifferenceSpace<Block>;  ///< a block that is its own difference space, or a library space's
+  static type make(const Block& block) { return differenceSpace(block); }
+};
+
+template <typename Block>
+  requires(!std::is_same_v<DifferenceSpace<Block>, Block> && !IsUntagged<Block>)
+struct DifferenceBlockOf<Block> {
+  using type = DifferenceOf<Block>;  ///< a tagged block whose difference space would lose its tag
+  static type make(const Block& block) { return type{differenceSpace(block)}; }
+};
+
+template <typename Block>
+struct TagOfImpl<DifferenceOf<Block>> {
+  using type = TagOf<Block>;
+};
+
 /** \internal Number of times \a Tag appears in \a S, not looking inside repeated blocks. */
 template <typename Tag, typename S>
 consteval int countTag();

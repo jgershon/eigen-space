@@ -21,6 +21,7 @@
 
 #include <complex>
 #include <type_traits>
+#include <utility>
 
 namespace {
 
@@ -333,6 +334,56 @@ void group_operations_keep_units() {
   VERIFY((Map<const Matrix<double, 9, 1>>(Step{minus(roundTrip, e)}.data())).norm() < 1e-12);
 }
 
+// Blocks by tag, typed by the subspaces they name: a mean's velocity in metres per second, a covariance's attitude
+// rows in radians through DifferenceOf, and a transition's columns dual to the state's. Writes convert into the
+// block's units [typed-blocks].
+void blocks_by_tag_keep_units() {
+  using Value = QVector<BodySI>;
+  using Step = QVector<BodyStep>;
+  using Covariance = QMatrix<BodyStep, BodyStep>;
+  using Transition = QMatrix<BodyStep, Dual<BodyStep>>;
+  using VelocitySI = In<BodyVelocity, metrePerSecond>;
+  using PositionSI = In<BodyPosition, si::metre>;
+
+  Step xi;
+  xi << 0.3, -0.2, 0.5, 1.0, 2.0, -0.5, 4.0, -3.0, 2.0;
+  Value x = exp<BodySI>(xi);
+  static_assert(std::is_same_v<RowSpaceOf<decltype(x.segment<BodyVelocity>())>, VelocitySI>);
+  static_assert(std::is_same_v<RowSpaceOf<decltype(std::as_const(x).segment<BodyPosition>())>, PositionSI>);
+  const QVector<VelocitySI> v = x.segment<BodyVelocity>();
+  VERIFY_IS_APPROX(v(0), x(4));
+  VERIFY_IS_APPROX(v(2), x(6));
+
+  // A write converts: a position in feet lands in the mean in metres.
+  x.segment<BodyPosition>() = QVector<In<BodyPosition, ft::foot>>(1.0, 2.0, 3.0);
+  VERIFY_IS_APPROX(x(7), footInMetres);
+  VERIFY_IS_APPROX(x(9), 3.0 * footInMetres);
+
+  // The attitude's rows of a step are radians, under the attitude's own tag.
+  static_assert(internal::spaces_equal<RowSpaceOf<decltype(xi.segment<Attitude>())>, QLinear<si::radian, 3>>::value);
+  static_assert(
+      std::is_same_v<internal::TagOf<std::tuple_element_t<0, internal::CompositeBlocks<BodyStep>>>, Attitude>);
+  VERIFY_IS_APPROX((xi.segment<Attitude>()(1)), -0.2);
+
+  Covariance p = Covariance::Identity();
+  using VelocityAttitude = decltype(p.block<BodyVelocity, Attitude>());
+  static_assert(internal::spaces_equal<RowSpaceOf<VelocityAttitude>, QLinear<metrePerSecond, 3>>::value &&
+                internal::spaces_equal<ColSpaceOf<VelocityAttitude>, QLinear<si::radian, 3>>::value);
+  p.block<BodyVelocity, Attitude>()(0, 1) = 0.25;
+  VERIFY_IS_APPROX(p(3, 1), 0.25);
+
+  // A transition's columns are dual: its velocity-by-attitude block is in (m/s)/rad, and its product with the
+  // attitude's rows of a step is in metres per second.
+  Transition f = Transition::Zero();
+  using VelocityPerAttitude = decltype(f.block<BodyVelocity, Attitude>());
+  static_assert(internal::spaces_dual<ColSpaceOf<VelocityPerAttitude>, QLinear<si::radian, 3>>::value);
+  f.block<BodyVelocity, Attitude>()(0, 0) = 2.0;
+  const QVector<VelocitySI> dv = f.block<BodyVelocity, Attitude>() * xi.segment<Attitude>();
+  VERIFY_IS_APPROX(dv(0), 0.6);
+  // A path through a tag: the same block named from the pose.
+  static_assert(std::is_same_v<RowSpaceOf<decltype(x.segment<TagPath<BodyVelocity>>())>, VelocitySI>);
+}
+
 }  // namespace
 
 EIGEN_DECLARE_TEST(units) {
@@ -347,4 +398,5 @@ EIGEN_DECLARE_TEST(units) {
   CALL_SUBTEST_1(quantities_scale_matrices());
   CALL_SUBTEST_1(complex_scalars_keep_units());
   CALL_SUBTEST_1(group_operations_keep_units());
+  CALL_SUBTEST_1(blocks_by_tag_keep_units());
 }

@@ -31,9 +31,11 @@ far as the filter does.
       difference keeps the difference's own quantities where the space had them. AutoDiff's global
       functions deduce their whole argument, so `exp<Pose>(d)` does not instantiate
       `AutoDiffScalar<Pose>`, and a periodic value wraps under AutoDiff.
-- [ ] Blocks by tag, from step 5's tag addressing: `x(Path{})`, `m.block<RowPath, ColPath>()`, and
-      their writable forms, typed by the subspaces named, enough to assemble the error dynamics
-      and the measurement Jacobian block by block and to read the state's parts.
+- [x] Blocks by tag, from step 5's tag addressing [typed-blocks]: `x.segment<Path>()`,
+      `m.middleRows<Path>()`, `m.middleCols<Path>()`, and `m.block<RowPath, ColPath>()` on spaces
+      of fixed size, writable, typed by the subspaces named with the units their spaces bind, and
+      difference spaces that keep their blocks' tags through `DifferenceOf`, so a covariance's
+      attitude rows are named `Attitude`; a failtest for a write in the wrong units.
 - [ ] The typed `Identity()` and `Zero()` of a matrix from one space to another, including the
       identity block from velocity to the time derivative of position, whose entries are one.
 - [ ] `skew<ColSpace>(v)`: the matrix of $\delta \mapsto v \times \delta$ with rows in $v$'s
@@ -65,8 +67,8 @@ and decomposition the slice did not reach.
 - [ ] `Block`, `Map`, `Ref`, `Replicate`, `Reshaped`, and the reductions computing spaces.
 - [ ] The space rules in `Inverse`, `Solve`, `Redux`, `VectorwiseOp`, and `Dot`, each with a
       failtest.
-- [ ] Tag addressing: `m(Path{}, Path{})`, `m.rows<Path>()`, `m.block<RowPath, ColPath>()`, the
-      uniform-axis rule for blocks by offset, and `untyped()`; idx() and diffIdx() go.
+- [ ] Tag addressing, beyond step 6's: `m(Path{}, Path{})`, blocks by tag on spaces of run-time
+      size, the uniform-axis rule for blocks by offset, and `untyped()`; idx() and diffIdx() go.
 - [ ] The factor spaces of Cholesky, LU, QR, SVD, and the eigensolvers.
 - [ ] A fixed-size Kalman example whose every matrix is typed, beside step 6's filter.
 
